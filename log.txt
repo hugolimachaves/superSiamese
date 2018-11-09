@@ -1,0 +1,21 @@
+Progresso
+
+# Possivel erro em Retrain (goodsamples são comparadas no lugar da bb do tracker)
+
+
+Detector.cpp
+	modelSimilatiry:
+		Dividida em duas funçoes semelhante, modelSimilatiryTrain e modelSimilatiryRetrain, onde modelSimilatiryTrain calcula a 
+			similaridade na forma padrao do codigo da Helena e a modelSimilatiryRerain calcula a partir dos resultados do Python
+
+	relativeSimilarity: 
+		Dividida em duas funçoes semelhante, relativeSimilarityTrain e relativeSimilarityRetrain, onde relativeSimilarityTrain calcula a 
+			similaridade na forma padrao do codigo da Helena e a relativeSimilarityRerain calcula a partir dos resultados do Python
+
+	nnTrain:
+		Dividida em duas funçoes semelhante, nnTrain e nnRetrain, onde nnTrain calcula a similaridade na forma padrao do codigo da Helena
+			e a nnRetrain calcula a partir dos resultados do Python
+
+	Train:
+		Vector bad_windows é muito grande para ser retornado para o python... então estamos retornando a good_window_hull para que o python gere bad_windows aleatórias	(#TODO a geração)
+
