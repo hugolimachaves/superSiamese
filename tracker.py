@@ -43,8 +43,8 @@ MAX_OBJECT_MODEL_ONE_DIM = 10
 OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM = 50
 TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM = MAX_OBJECT_MODEL_ONE_DIM * OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM
 CAMINHO_DATASET = '/home/hugo/Documents/Mestrado/vot2015'
-FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 30
-IN_A_SERVER = 1
+FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 1 
+IN_A_SERVER = False
 
 
 tf.set_random_seed(1) #os.environ['PYTHONHASHSEED'] = '0' #rn.seed(12345) #np.random.seed(42)
@@ -58,7 +58,7 @@ def _get_Args():
 
 
 class Generation:
-	
+
 	def __init__(self,opts,siamiseNetWorkLocal):
 		self.minimumSiameseNetPlaceHolder = tf.placeholder(tf.float32, [ONE_DIMENSION, opts['minimumSize'], opts['minimumSize'], RGB])
 		tf.convert_to_tensor(False, dtype='bool', name='is_training')
@@ -66,7 +66,7 @@ class Generation:
 		self.zMinimumPreTrained =siamiseNetWorkLocal.buildExemplarSubNetwork(self.minimumSiameseNetPlaceHolder,opts,isTrainingOp)
 		self.tensorFlowSession = tf.Session()
 		tf.initialize_all_variables().run(session=self.tensorFlowSession)
-		
+
 
 	def  extend(self,bb,margin):
 		bb_aux = []
@@ -85,7 +85,7 @@ class Generation:
 		bottom  = round(bb[3] + top)
 
 		cropped = img.crop([left,top,right,bottom])
-		
+
 		return cropped
 
 	def convertYXWH2LTRB(self,yxwh):
@@ -100,7 +100,7 @@ class Generation:
 	def get_image_cropped2(self, img, bb, margem):
 
 		bb = self.convertYXWH2LTRB(bb[:4])
-	
+
 
 		bb = self.extend(bb,margem)
 
@@ -119,7 +119,7 @@ class Generation:
 
 		img_cropped = img.crop(bb)
 		img_np = np.array(img_cropped)
-		
+
 		for i in range(RGB):
 
 			if(margin[0] is not 0):
@@ -148,19 +148,14 @@ class Generation:
 
 	def getDescriptor(self,bb,imageSource): # zMinimumFeatures = sess.run(zMinimumPreTrained, feed_dict={minimumSiameseNetPlaceHolder: zCropMinimum})
 		imImageSource = self.get_image_cropped2(imageSource,bb, 0.35) ##MARGEM
-		
 		#imImageSource.show()
-	
 		#imageSource.show()
 		#input('iaperta alguma coisa')
-
 		neoImageSource = imImageSource.resize((ATOMIC_SIZE,ATOMIC_SIZE))
-
 		npImageSource = np.array(neoImageSource)
 		npImageSource = npImageSource.reshape(1,npImageSource.shape[0],npImageSource.shape[1],3)
-
 		zMinimumFeatures = self.tensorFlowSession.run(self.zMinimumPreTrained, feed_dict={self.minimumSiameseNetPlaceHolder: npImageSource})
-		
+
 		return zMinimumFeatures
 
 class DeepDescription:
@@ -189,7 +184,7 @@ class DeepDescription:
 	negative_distances_tracker_candidate  = []
 	positive_similarity_tracker_candidate = []
 	negative_similarity_tracker_candidate = []
-	
+
 	__currentFrame = 0
 
 	def __init__(self):
@@ -210,9 +205,9 @@ class DeepDescription:
 
 		self.__currentFrame = currentFrame
 		return [], []
-	
+
 class Visualization:
- 
+
 
 	def __init__(self, n_subWindows, size_subWindow,title, listFrames):
 
@@ -251,7 +246,7 @@ class Visualization:
 
 		cv2.imshow(self._titulo,self._imagemModels)
 
-	
+
 	def destroyWindow(self):
 
 		try:
@@ -259,17 +254,16 @@ class Visualization:
 		except:
 			print('ERRO: Nao foi possivel destruir a janela')
 
-	
 	def _planarFromLinear(self,linear):
 		if linear == 0:
 			i = 0
 			j = 0
 		else: # verificar isso aqui
-			
+
 			j = linear%self._n_subwindows_per_dimension
 			i = int(linear/self._n_subwindows_per_dimension)%self._n_subwindows_per_dimension
 
-			''' errado	
+			''' errado
 			linear = self._n_subwindows_per_dimension**2%linear
 			j = linear%self._n_subwindows_per_dimension
 			i = int(linear/self._n_subwindows_per_dimension)
@@ -284,8 +278,7 @@ class Visualization:
 
 
 	def _get_modelo_shrinked_image(self,BB,imagem): # retorna a imagem shrinked referente ao frame enviado
-		
-		
+
 		# 'imagem' com o shape okay, nao e (0,0,3)
 		bb_ltrb = self.convertYXWH2LTRB(BB)
 		image_cropped = self.crop_image(imagem,bb_ltrb) # entra np.array --> sai PIL image;
@@ -338,7 +331,7 @@ generalDescriptor = DeepDescription()
 def convertSimilatiry(siameseDistance):
 	return np.exp(- K * siameseDistance) # retorna a distancia no TLD
 	#return 1.0 / (siameseDistance + 1.0) # retorna a distancia no TLD
-	
+
 def getLength(element): # verifica o tamanho total de elementos em uma estrutura de dados de dimensoes arbitrarias
 	if isinstance(element, list):
 		return sum(([getLength(i) for i in element]))
@@ -354,12 +347,12 @@ def distCandidatesToTheModel(deep_features_candidates, isPositive=True):
 		positiveLabel = [1 for i in feature_pos_obj_model]
 		labels = np.asarray(positiveLabel)
 		features = np.asarray(feature_pos_obj_model)
-	
+
 	else: # modelo negativo do object model
-		negativeLabel = [0 for i in feature_neg_obj_model] 
+		negativeLabel = [0 for i in feature_neg_obj_model]
 		labels = np.asarray(negativeLabel)
 		features = np.asarray(feature_neg_obj_model)
-	
+
 	distances = []
 	positions = []
 
@@ -367,7 +360,7 @@ def distCandidatesToTheModel(deep_features_candidates, isPositive=True):
 		knn_1 = KNeighborsClassifier(n_neighbors=1)
 		listFeatures = [bb for frame in features for bb in frame]
 		knn_1.fit(listFeatures, labels)
-		
+
 		for candidate in deep_features_candidates: # pega a menor distancia para cada candidato na lista deep_features_candidate
 			list_candidate = np.asarray(candidate)
 			dist,position = knn_1.kneighbors(list_candidate, n_neighbors=1, return_distance=True)
@@ -397,7 +390,7 @@ def detSimilarity(feature_a, feature_b):
 	for a, b in zip(feature_1, feature_2):
 		#print('(a - b) ** 2: ', (a - b) ** 2,'\n')
 		dist += (a - b) ** 2
-	
+
 	print('\n\ndist: ',np.sqrt(dist))
 	print('convertSimilatiry: ',convertSimilatiry(float(np.sqrt(dist))))
 	#print('feature_1: ', feature_1.reshape(-1))
@@ -416,7 +409,7 @@ def detSimilarity(feature_a, feature_b):
 def read_data(array, array_size, frame, name=0):
 	bb_list = []
 	is_empty = True
-	
+
 	if DEBUG_PRINT_ARRAY and name is not 0:
 		if(name == 1):
 			print('\n\tNegativo ', end='')
@@ -534,7 +527,7 @@ def loadVideoInfo(basePath, video):
 	groundTruth = open(groundTruthFile, 'r')
 	reader = groundTruth.readline()
 	region = [float(i) for i in reader.strip().split(",")]
-	
+
 	cx, cy, w, h = getAxisAlignedBB(region)
 	pos = [cy, cx]
 	targetSz = [h, w]
@@ -654,7 +647,7 @@ def trackerEval(score, sx, targetPosition, window, opts):
 
 '''----------------------------------------main-----------------------------------------------------'''
 def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
-	
+
 	opts = configParams()
 	opts = getOpts(opts)
 	#add
@@ -662,7 +655,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 	caminhoVideo = os.path.join(caminhoDataset,nome_do_video)
 	caminhoLog =  os.path.join(caminhoVideo,'__log__')
 	nome_log = nome_do_arquivo_de_saida
-		
+
 	#REDE 1
 	exemplarOp = tf.placeholder(tf.float32, [1, opts['exemplarSize'], opts['exemplarSize'], 3])
 	instanceOp = tf.placeholder(tf.float32, [opts['numScale'], opts['instanceSize'], opts['instanceSize'], 3])
@@ -678,7 +671,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 	saver.restore(sess, opts['modelName'])
 	saver.restore(sess2, opts['modelName'])
 	zFeatOp = sn.buildExemplarSubNetwork(exemplarOp, opts, isTrainingOp)
-	
+
 	#REDE2
 	exemplarOp2 = tf.placeholder(tf.float32, [1, opts['exemplarSize'], opts['exemplarSize'], 3])
 	instanceOp2 = tf.placeholder(tf.float32, [opts['numScale'], opts['instanceSize'], opts['instanceSize'], 3])
@@ -697,7 +690,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 	nImgs = len(imgs)
 	imgs_pil =  [Image.fromarray(np.uint8(img)) for img in imgs]
 
-		
+
 	im = imgs[POSICAO_PRIMEIRO_FRAME]
 	if(im.shape[-1] == 1):
 		tmp = np.zeros([im.shape[0], im.shape[1], 3], dtype=np.float32)
@@ -736,24 +729,24 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 	zCrop = np.expand_dims(zCrop, axis=0)
 	zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
 	zFeat = np.transpose(zFeat, [1, 2, 3, 0])
-	zFeatConstantOp = tf.constant(zFeat, dtype=tf.float32)
-	scoreOp = sn.buildInferenceNetwork(instanceOp, zFeatConstantOp, opts, isTrainingOp)
+	template = tf.constant(zFeat, dtype=tf.float32)
+	scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
 	writer.add_graph(sess.graph)
 
 	#REDE2
 	zCrop_original = np.array(zCrop)
 	zFeat_original = sess2.run(zFeatOp2, feed_dict={exemplarOp2: zCrop_original})
 	zFeat_original = np.transpose(zFeat_original, [1, 2, 3, 0])
-	zFeatConstantOp_original = tf.constant(zFeat_original, dtype=tf.float32)
-	zFeatConstantOp = zFeatConstantOp_original
-	scoreOp_original = sn.buildInferenceNetwork(instanceOp, zFeatConstantOp_original, opts, isTrainingOp)
+	template_original = tf.constant(zFeat_original, dtype=tf.float32)
+	template = template_original
+	scoreOp_original = sn.buildInferenceNetwork(instanceOp, template_original, opts, isTrainingOp)
 	writer2.add_graph(sess2.graph)
 
 	tic = time.time()
 	ltrb = []
 
 	for frame in range(POSICAO_PRIMEIRO_FRAME, nImgs):
-		
+
 		print(('frame ' + str(frame+1)).center(80,'*'))
 		if frame > POSICAO_PRIMEIRO_FRAME:
 
@@ -765,9 +758,9 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 			scaledInstance = sx * scales
 			scaledTarget = np.array([targetSize * scale for scale in scales])
 			xCrops = makeScalePyramid(im, targetPosition, scaledInstance, opts['instanceSize'], avgChans, None, opts)
-			
-			if frame < FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:	
-				zFeatConstantOp = zFeatConstantOp_original
+
+			if frame < FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
+				template = template_original
 			else:
 
 				zCrop, _ = getSubWinTracking(im, targetPosition, (opts['exemplarSize'], opts['exemplarSize']), (np.around(sz), np.around(sz)), avgChans)
@@ -775,15 +768,28 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 				zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
 				zFeat = np.transpose(zFeat, [1, 2, 3, 0])
 				zFeat.reshape(1,6,6,256)
-				zFeatConstantOp = tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + zFeatConstantOp * (frame/(frame+1) )
+				#template = tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template * (frame/(frame+1) )
+				y = np.zeros([6,6])
+				e = np.zeros([6,6])
+				d = np.zeros([6,6])
+				mi = 0.1
+				npTemplate = tf.Session().run(template) # casting para np array
+				for i in range(6):
+					for j in range(6):
+						
+						y[i,j] = np.inner(npTemplate[1,i,j,:],zFeat[1,i,j,:])
+						d[i,j] = np.inner(npTemplate[1,i,j,:],npTemplate[1,i,j,:]) 
+						e[i,j] = d[i,j] - y[i,j]
+						npTemplate[1,i,j,:] = npTemplate[1,i,j,:] - mi*zFeat[1,i,j,:]*e[i,j] 
+						template = tf.constant(npTemplate , dtype=tf.float32) # casting para np array ser uma tf constant
 
-			scoreOp = sn.buildInferenceNetwork(instanceOp, zFeatConstantOp, opts, isTrainingOp)
+			scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
 			score = sess.run(scoreOp, feed_dict={instanceOp: xCrops})
 			sio.savemat('score.mat', {'score': score})
 			newTargetPosition, newScale = trackerEval(score, round(sx), targetPosition, window, opts)
 			targetPosition = newTargetPosition
 			sx = max(minSx, min(maxSx, (1-opts['scaleLr'])*sx+opts['scaleLr']*scaledInstance[newScale]))
-			targetSize = (1-opts['scaleLr'])*targetSize+opts['scaleLr']*scaledTarget[newScale]	
+			targetSize = (1-opts['scaleLr'])*targetSize+opts['scaleLr']*scaledTarget[newScale]
 
 		else:
 			pass
@@ -808,15 +814,8 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 			linhas.append(linha)
 		for i in linhas:
 			file.write(i)
-
-		
-	
 	print(time.time()-tic)
-
-	
 	return
-
-
 
 if __name__=='__main__':
 
@@ -825,5 +824,3 @@ if __name__=='__main__':
 	nome_do_arquivo_de_saida = args.nome
 	caminho_do_dataset = args.caminho
 	_main(video,nome_do_arquivo_de_saida,caminho_do_dataset)
-	
-
