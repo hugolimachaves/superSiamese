@@ -43,9 +43,14 @@ MAX_OBJECT_MODEL_ONE_DIM = 10
 OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM = 50
 TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM = MAX_OBJECT_MODEL_ONE_DIM * OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM
 CAMINHO_DATASET = '/home/hugo/Documents/Mestrado/vot2015'
-FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 1 
+FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 1 # infinito ==  original
 IN_A_SERVER = False
-
+SIAMESE_STRIDE = 8
+SIAMESE_DESCRIPTOR_DIMENSION = 256
+NUMBER_OF_EXEMPLAR_DESCRIPTOR = 6
+AMPLITUDE_DESLOCAMENTO = 0 # define a amplitude da realizacao da media de templantes no espaco - 0 == original
+FRAMES_COM_MEDIA_ESPACIAL = [POSICAO_PRIMEIRO_FRAME] # lista com o frames onde a media espacial sera realizada - [] ==  original
+MI = 0.1 # parametro do filtro adaptativo - 0 == original.
 
 tf.set_random_seed(1) #os.environ['PYTHONHASHSEED'] = '0' #rn.seed(12345) #np.random.seed(42)
 
@@ -644,6 +649,59 @@ def trackerEval(score, sx, targetPosition, window, opts):
 
 	return newTargetPosition, bestScale
 
+def getCumulativeTemplate(zFeat,frame,template):
+	return tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template * (frame/frame+1) )
+
+def filtroAdaptativo(template,zFeat):
+
+	#filtro adaptativo
+	y = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
+	e = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
+	d = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
+	npTemplate = tf.Session().run(template) # casting para np array
+	for i in range(NUMBER_OF_EXEMPLAR_DESCRIPTOR):
+		for j in range(NUMBER_OF_EXEMPLAR_DESCRIPTOR):
+			y[i,j] = np.inner(npTemplate[1,i,j,:],zFeat[1,i,j,:])
+			d[i,j] = np.inner(npTemplate[1,i,j,:],npTemplate[1,i,j,:]) 
+			e[i,j] = d[i,j] - y[i,j]
+			npTemplate[1,i,j,:] = npTemplate[1,i,j,:] - MI*zFeat[1,i,j,:]*e[i,j] 
+			template = tf.constant(npTemplate , dtype=tf.float32) # casting para np array ser uma tf constant
+	return template
+
+def spatialTemplate(targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False ):
+	#construção da criaçao do objeto com media espacial
+	
+	#TODO - Isso aqui sera chamado fora da funcao. A ser Feito
+	if frame in FRAMES_COM_MEDIA_ESPACIAL:
+		amplitude = AMPLITUDE_DESLOCAMENTO
+		assert 1==2 # definir a amplitude de deslocamento
+		assert amplitude <= SIAMESE_STRIDE # nao faz sentido um deslocamento maior que esse, pois voce ira pegar "celulas de descricao" iguais - lembre-se que que o stride e 8	
+	else:
+		amplitude = 0
+
+	spatial_cont = 0
+	#quando a media espacial na for desejada, ambos lacos aninhados serao executarao apenas uma iteracao
+	for desloc_x in range(-amplitude,amplitude+1):
+		for desloc_y in range(-amplitude,amplitude+1):
+			targetPosition[0] = targetPosition[0] + desloc_x
+			targetPosition[1] = targetPosition[1] + desloc_y
+			zCrop, _ = getSubWinTracking(im, targetPosition, (opts['exemplarSize'], opts['exemplarSize']), (np.around(sz), np.around(sz)), avgChans)
+			zCrop = np.expand_dims(zCrop, axis=0)
+			zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
+			zFeat = np.transpose(zFeat, [1, 2, 3, 0])
+			zFeat.reshape(1,NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR,SIAMESE_DESCRIPTOR_DIMENSION)
+			template = tf.constant(zFeat , dtype=tf.float32) * (1/(spatial_cont+1)) + template * (spatial_cont/(spatial_cont+1) )
+			spatial_cont++ # caso seja feita uma media espacial, deve-se incrementar o contador para aumentar a variavel no inicio do loop
+			#pegando o template cumulativo
+	if (cumulative):
+		template = getCumulativeTemplate(zFeat,frame,template) #TODO:> verifcar a condidional para a utilizacao do template  acumulativo
+	#filtro adaptativo
+	if (adaptative):
+		template = filtroAdaptativo(template,zFeat,spatial_cont)
+
+	return template
+
+
 
 '''----------------------------------------main-----------------------------------------------------'''
 def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
@@ -738,7 +796,8 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 	zFeat_original = sess2.run(zFeatOp2, feed_dict={exemplarOp2: zCrop_original})
 	zFeat_original = np.transpose(zFeat_original, [1, 2, 3, 0])
 	template_original = tf.constant(zFeat_original, dtype=tf.float32)
-	template = template_original
+	template = np.array(template_original)
+	template_acumulado = np.array(template)
 	scoreOp_original = sn.buildInferenceNetwork(instanceOp, template_original, opts, isTrainingOp)
 	writer2.add_graph(sess2.graph)
 
@@ -751,7 +810,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 		if frame > POSICAO_PRIMEIRO_FRAME:
 
 			im = imgs[frame]
-			if(im.shape[-1] == 1):
+			if(im.shape[-1] == 1): # se a imagem for em escala de cinza
 				tmp = np.zeros([im.shape[0], im.shape[1], 3], dtype=np.float32)
 				tmp[:, :, 0] = tmp[:, :, 1] = tmp[:, :, 2] = np.squeeze(im)
 				im = tmp
@@ -761,28 +820,16 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 
 			if frame < FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
 				template = template_original
+				template_acumulado  = getCumulativeTemplate(zFeat,frame,template_acumulado)
 			else:
+				
+				#TODO : arrumar isso aqui
+				template_espacial = spatialTemplate (targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False )
+				template_acumulado = getCumulativeTemplate(zFeat,frame,template_acumulado)
+				template_adaptativo = filtroAdaptativo(template,zFeat):
 
-				zCrop, _ = getSubWinTracking(im, targetPosition, (opts['exemplarSize'], opts['exemplarSize']), (np.around(sz), np.around(sz)), avgChans)
-				zCrop = np.expand_dims(zCrop, axis=0)
-				zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
-				zFeat = np.transpose(zFeat, [1, 2, 3, 0])
-				zFeat.reshape(1,6,6,256)
-				#template = tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template * (frame/(frame+1) )
-				y = np.zeros([6,6])
-				e = np.zeros([6,6])
-				d = np.zeros([6,6])
-				mi = 0.1
-				npTemplate = tf.Session().run(template) # casting para np array
-				for i in range(6):
-					for j in range(6):
 						
-						y[i,j] = np.inner(npTemplate[1,i,j,:],zFeat[1,i,j,:])
-						d[i,j] = np.inner(npTemplate[1,i,j,:],npTemplate[1,i,j,:]) 
-						e[i,j] = d[i,j] - y[i,j]
-						npTemplate[1,i,j,:] = npTemplate[1,i,j,:] - mi*zFeat[1,i,j,:]*e[i,j] 
-						template = tf.constant(npTemplate , dtype=tf.float32) # casting para np array ser uma tf constant
-
+						
 			scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
 			score = sess.run(scoreOp, feed_dict={instanceOp: xCrops})
 			sio.savemat('score.mat', {'score': score})
