@@ -43,7 +43,7 @@ MAX_OBJECT_MODEL_ONE_DIM = 10
 OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM = 50
 TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM = MAX_OBJECT_MODEL_ONE_DIM * OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM
 CAMINHO_DATASET = '/home/hugo/Documents/Mestrado/vot2015'
-FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 1 # infinito ==  original
+FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 5 # infinito ==  original
 IN_A_SERVER = False
 SIAMESE_STRIDE = 8
 SIAMESE_DESCRIPTOR_DIMENSION = 256
@@ -650,7 +650,7 @@ def trackerEval(score, sx, targetPosition, window, opts):
 	return newTargetPosition, bestScale
 
 def getCumulativeTemplate(zFeat,frame,template):
-	return tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template * (frame/frame+1) )
+	return (tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template * (frame/(frame+1)))
 
 def filtroAdaptativo(template,zFeat):
 
@@ -690,8 +690,8 @@ def spatialTemplate(targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarO
 			zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
 			zFeat = np.transpose(zFeat, [1, 2, 3, 0])
 			zFeat.reshape(1,NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR,SIAMESE_DESCRIPTOR_DIMENSION)
-			template = tf.constant(zFeat , dtype=tf.float32) * (1/(spatial_cont+1)) + template * (spatial_cont/(spatial_cont+1) )
-			spatial_cont++ # caso seja feita uma media espacial, deve-se incrementar o contador para aumentar a variavel no inicio do loop
+			template = tf.constant(zFeat , dtype=tf.float32) * (1/(spatial_cont+1)) + template*(spatial_cont/(spatial_cont+1))
+			spatial_cont+=1 # caso seja feita uma media espacial, deve-se incrementar o contador para aumentar a variavel no inicio do loop
 			#pegando o template cumulativo
 	if (cumulative):
 		template = getCumulativeTemplate(zFeat,frame,template) #TODO:> verifcar a condidional para a utilizacao do template  acumulativo
@@ -806,10 +806,20 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 
 	for frame in range(POSICAO_PRIMEIRO_FRAME, nImgs):
 
+		im = imgs[frame]
+
 		print(('frame ' + str(frame+1)).center(80,'*'))
 		if frame > POSICAO_PRIMEIRO_FRAME:
 
-			im = imgs[frame]
+
+			zCrop, _ = getSubWinTracking(im, targetPosition, (opts['exemplarSize'], opts['exemplarSize']), (np.around(sz), np.around(sz)), avgChans)
+			zCrop = np.expand_dims(zCrop, axis=0)
+			zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
+			zFeat = np.transpose(zFeat, [1, 2, 3, 0])
+			zFeat.reshape(1,NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR,SIAMESE_DESCRIPTOR_DIMENSION)
+			template = tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template*(frame/(frame+1))
+
+			
 			if(im.shape[-1] == 1): # se a imagem for em escala de cinza
 				tmp = np.zeros([im.shape[0], im.shape[1], 3], dtype=np.float32)
 				tmp[:, :, 0] = tmp[:, :, 1] = tmp[:, :, 2] = np.squeeze(im)
@@ -824,9 +834,9 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 			else:
 				
 				#TODO : arrumar isso aqui
-				template_espacial = spatialTemplate (targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False )
+				#template_espacial = spatialTemplate (targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False )
 				template_acumulado = getCumulativeTemplate(zFeat,frame,template_acumulado)
-				template_adaptativo = filtroAdaptativo(template,zFeat):
+				#template_adaptativo = filtroAdaptativo(template,zFeat):
 
 						
 						
