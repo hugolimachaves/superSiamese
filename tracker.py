@@ -46,7 +46,7 @@ CAMINHO_DATASET = '/home/hugo/Documents/Mestrado/vot2015'
 
 FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 5 # infinito ==  original
 
-IN_A_SERVER = False
+IN_A_SERVER = True
 SIAMESE_STRIDE = 8
 SIAMESE_DESCRIPTOR_DIMENSION = 256
 NUMBER_OF_EXEMPLAR_DESCRIPTOR = 6
@@ -61,6 +61,7 @@ def _get_Args():
 	parser.add_argument("video", help= "nome da pasta do video")
 	parser.add_argument("nome", help = "nome do arquivo de saida")
 	parser.add_argument("caminho", help ="caminho ABSOLUTO para o dataset")
+	parser.add_argument("parametro", help = "parametro a ser setado para esse tracker")
 	return parser.parse_args()
 
 
@@ -655,7 +656,7 @@ def getCumulativeTemplate(zFeat,frame,template):
 	return (tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template * (frame/(frame+1)))
 
 
-def filtroAdaptativo(template,zFeat):
+def filtroAdaptativo(template,zFeat,mi):
 
 	#filtro adaptativo
 	y = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
@@ -673,7 +674,7 @@ def filtroAdaptativo(template,zFeat):
 			y[i,j] = np.inner(np.reshape(template256,-1) , np.reshape(zFeat256,256))
 			d[i,j] = np.inner(template[i,j,:,0],template[i,j,:,0]) 
 			e[i,j] = d[i,j] - y[i,j]
-			template[i,j,:,0] = template[i,j,:,0] - MI*zFeat[i,j,:,0]*e[i,j] 
+			template[i,j,:,0] = template[i,j,:,0] - mi*zFeat[i,j,:,0]*e[i,j] 
 	template = tf.constant(template , dtype=tf.float32) # casting para np array ser uma tf constant
 	return template
 
@@ -713,7 +714,7 @@ def spatialTemplate(targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarO
 
 
 '''----------------------------------------main-----------------------------------------------------'''
-def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
+def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 
 	opts = configParams()
 	opts = getOpts(opts)
@@ -722,6 +723,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 	caminhoVideo = os.path.join(caminhoDataset,nome_do_video)
 	caminhoLog =  os.path.join(caminhoVideo,'__log__')
 	nome_log = nome_do_arquivo_de_saida
+	mi = float(parametro)
 
 	#REDE 1
 	exemplarOp = tf.placeholder(tf.float32, [1, opts['exemplarSize'], opts['exemplarSize'], 3])
@@ -849,7 +851,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset):
 				template = template_original
 
 			print("shape de template antes de entrar na funcao do filtro adaptativo: ",template[0,1,:,0].shape )
-			template = filtroAdaptativo(template,zFeat)
+			template = filtroAdaptativo(template,zFeat,mi)
 
 			
 			scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
@@ -893,4 +895,5 @@ if __name__=='__main__':
 	video = args.video
 	nome_do_arquivo_de_saida = args.nome
 	caminho_do_dataset = args.caminho
-	_main(video,nome_do_arquivo_de_saida,caminho_do_dataset)
+	parametro = args.parametro
+	_main(video,nome_do_arquivo_de_saida,caminho_do_dataset, parametro)
