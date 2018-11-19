@@ -9,9 +9,9 @@ import videoMemory as vm
 
 listaDeParametros = [0.01,0.1,0.001,0.05,0.005,1]
 
-CAMINHO_VOT2015 = '/home/hugo/Documents/Mestrado/vot2015/'
+CAMINHO_VOT2015 = '/home/schrodinger/sdc/hugo/vot2015/'
 assert 1==2,'modificar o que esta abaixo desse assert'
-PATH_SCRIPT = '/home/hugo/Documents/Mestrado/neoSiamese/tracker.py'
+PATH_SCRIPT = '/home/schrodinger/sdc/hugo/superSiamese/tracker.py'
 NOME_ARQUIVO_SAIDA = 'filtro_adaptativo_mi_'
 listVideos = [ i for i in os.listdir(CAMINHO_VOT2015) if (not i.startswith('_')) and (os.path.isdir(os.path.join(CAMINHO_VOT2015,i)))]
 listVideos.sort()
@@ -64,11 +64,11 @@ def runner(lock, id, cont, free_memory, pos_list_video, finish, parametro):
 						try:
 							os.mkdir(os.path.join(CAMINHO_VOT2015,videoName,'__log__'))
 							print('videoName: ', videoName)
-							os.system('python ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' ' + CAMINHO_VOT2015 + str(parametro))
+							os.system('python ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' ' + CAMINHO_VOT2015 + ' ' + str(parametro))
 
 						except:
 							print('videoName: ', videoName)
-							os.system('python ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' '  + CAMINHO_VOT2015 + str(parametro) )
+							os.system('python ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' '  + CAMINHO_VOT2015 + ' ' +str(parametro) )
 
 					else:
 						lock.release()
