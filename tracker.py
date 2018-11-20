@@ -46,7 +46,7 @@ CAMINHO_DATASET = '/home/hugo/Documents/Mestrado/vot2015'
 
 FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 5 # infinito ==  original
 
-IN_A_SERVER = True
+IN_A_SERVER = False
 SIAMESE_STRIDE = 8
 SIAMESE_DESCRIPTOR_DIMENSION = 256
 NUMBER_OF_EXEMPLAR_DESCRIPTOR = 6
@@ -63,6 +63,39 @@ def _get_Args():
 	parser.add_argument("caminho", help ="caminho ABSOLUTO para o dataset")
 	parser.add_argument("parametro", help = "parametro a ser setado para esse tracker")
 	return parser.parse_args()
+
+
+class SuperTemplate:
+	'''
+	retorna um superTemplate formato tf.constant
+	'''
+	templateList = []
+
+	def __init__(self):
+		pass
+
+	def conservativeTemplate(self):
+		return tf.constant( sum(self.templateList[:round(len(self.templateList)/2)])/round(len(self.templateList)/2) , dtype=tf.float32) 
+
+	def oneShotTemplate(self):
+		return tf.constant( self.templateList[0] , dtype=tf.float32) 
+	
+	def innovativeTemplate(self,nLast):
+		return tf.constant( sum(self.templateList[-nLast:])/len(self.templateList[-nLast:]) , dtype=tf.float32) 
+		
+	def progressiveTemplate(self):
+		return tf.constant( sum(self.templateList[-round(len(self.templateList)/2):])/round(len(self.templateList)/2) , dtype=tf.float32) 
+
+	def nShotTemplate(self,nshots):
+		return tf.constant( sum(self.templateList[:nshots])/len(self.templateList[:nshots]) , dtype=tf.float32) 
+
+	def cummulativeTemplate(self):
+		return tf.constant( sum(self.templateList)/len(self.templateList) , dtype=tf.float32) 
+
+	def addInstance(self,instance):
+		template = np.array(instance)
+		self.templateList.append(template)
+
 
 
 class Generation:
@@ -816,6 +849,9 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	ltrb = []
 
 
+	superDescritor = SuperTemplate()
+	superDescritor.addInstance(zFeat)
+
 	for frame in range(POSICAO_PRIMEIRO_FRAME, nImgs):
 
 		im = imgs[frame]
@@ -828,6 +864,8 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
 			zFeat = np.transpose(zFeat, [1, 2, 3, 0])
 			zFeat.reshape(1,NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR,SIAMESE_DESCRIPTOR_DIMENSION)
+
+			superDescritor.addInstance(zFeat)
 			
 			#template = tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template*(frame/(frame+1))
 			
@@ -846,13 +884,19 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			'''
 			
 			#template_espacial = spatialTemplate (targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False )
-			
+			#template = superDescritor.cummulativeTemplate()
+			#template = superDescritor.progressiveTemplate()
+			#template = superDescritor.nShotTemplate(3)
+			template = superDescritor.innovativeTemplate(3)
 			if frame < 2:
 				template = template_original
 
 			print("shape de template antes de entrar na funcao do filtro adaptativo: ",template[0,1,:,0].shape )
-			template = filtroAdaptativo(template,zFeat,mi)
-
+			
+			#filtro adaptativo logo abaixo:
+			#template = filtroAdaptativo(template,zFeat,mi)
+			#~filtro adaptativo
+			
 			
 			scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
 			score = sess.run(scoreOp, feed_dict={instanceOp: xCrops})
