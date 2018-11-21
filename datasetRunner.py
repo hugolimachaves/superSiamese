@@ -85,7 +85,7 @@ def runner(lock, id, cont, free_memory, pos_list_video, finish, parametro):
 				cont.value = 0
 				lock.release()
 				time.sleep(5)
-
+		lock.release()
 		finally:
 			pass
 
