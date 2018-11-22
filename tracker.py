@@ -544,6 +544,21 @@ def getAxisAlignedBB(region):
 
 	return cx-1, cy-1, w, h
 
+def get_next_frame(imgFiles, frame):
+	return cv2.imread(imgFiles[frame]).astype(np.float32)
+
+def get_list_img_files(vpath):
+	imgs = []
+	imgFiles = [imgFile for imgFile in glob.glob(os.path.join(vpath, "*.jpg"))]
+	for imgFile in imgFiles:
+		if imgFile.find('00000000.jpg') >= 0:
+			imgFiles.remove(imgFile)
+
+	imgFiles.sort()
+
+	return imgFiles
+
+'''
 def frameGenerator(vpath):
 	imgs = []
 	imgFiles = [imgFile for imgFile in glob.glob(os.path.join(vpath, "*.jpg"))]
@@ -560,6 +575,7 @@ def frameGenerator(vpath):
 		imgs.append(img)
 
 	return imgs
+'''
 
 def loadVideoInfo(basePath, video):
 	videoPath = os.path.join(basePath, video)
@@ -573,9 +589,9 @@ def loadVideoInfo(basePath, video):
 	pos = [cy, cx]
 	targetSz = [h, w]
 
-	imgs = frameGenerator(videoPath)
+	imgFiles = get_list_img_files(videoPath)
 
-	return imgs, np.array(pos), np.array(targetSz)
+	return imgFiles, np.array(pos), np.array(targetSz)
 
 def getSubWinTracking(img, pos, modelSz, originalSz, avgChans):
 	if originalSz is None:
@@ -788,12 +804,15 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	saver2.restore(sess2, opts['modelName'])
 	zFeatOp2 = sn2.buildExemplarSubNetwork(exemplarOp2, opts, isTrainingOp2)
 
-	imgs, targetPosition, targetSize = loadVideoInfo(  caminhoDataset, nome_do_video )
-	nImgs = len(imgs)
-	imgs_pil =  [Image.fromarray(np.uint8(img)) for img in imgs]
+	#imgs, targetPosition, targetSize = loadVideoInfo(caminhoDataset, nome_do_video)
+	imgFiles, targetPosition, targetSize = loadVideoInfo(caminhoDataset, nome_do_video)
 
 
-	im = imgs[POSICAO_PRIMEIRO_FRAME]
+	nImgs = len(imgFiles)
+	#imgs_pil =  [Image.fromarray(np.uint8(img)) for img in imgs]
+
+	im = get_next_frame(imgFiles, POSICAO_PRIMEIRO_FRAME)
+
 	if(im.shape[-1] == 1):
 		tmp = np.zeros([im.shape[0], im.shape[1], 3], dtype=np.float32)
 		tmp[:, :, 0] = tmp[:, :, 1] = tmp[:, :, 2] = np.squeeze(im)
@@ -854,7 +873,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 
 	for frame in range(POSICAO_PRIMEIRO_FRAME, nImgs):
 
-		im = imgs[frame]
+		im = get_next_frame(imgFiles, frame)
 
 		print(('frame ' + str(frame+1)).center(80,'*'))
 		if frame > POSICAO_PRIMEIRO_FRAME:
@@ -887,14 +906,14 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			#template = superDescritor.cummulativeTemplate()
 			#template = superDescritor.progressiveTemplate()
 			#template = superDescritor.nShotTemplate(3)
-			template = superDescritor.innovativeTemplate(3)
-			if frame < 2:
+			#template = superDescritor.innovativeTemplate(3)
+			if frame < 1:
 				template = template_original
 
 			print("shape de template antes de entrar na funcao do filtro adaptativo: ",template[0,1,:,0].shape )
 			
 			#filtro adaptativo logo abaixo:
-			#template = filtroAdaptativo(template,zFeat,mi)
+			template = filtroAdaptativo(template,zFeat,mi)
 			#~filtro adaptativo
 			
 			
@@ -918,6 +937,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			cv2.imshow("tracking - siamese", imDraw)
 			cv2.waitKey(1)
 		ltrb.append(list(tl) + list(br))
+		
 	with open( os.path.join(caminhoLog, nome_log ),'w') as file:
 		linhas = []
 		for i in ltrb:

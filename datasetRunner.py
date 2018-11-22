@@ -6,93 +6,86 @@ from multiprocessing import Pool
 import multiprocessing
 import videoMemory as vm
 
+MARGEM_GIGAS_LIVRES = 4
+NUM_THREAD = 24
 
-listaDeParametros = [0.01,0.1,0.001,0.05,0.005,1]
+listaDeParametros = [0.1,0.001,0.05,0.005,1]
 
 CAMINHO_VOT2015 = '/home/schrodinger/sdc/hugo/vot2015/'
-assert 1==2,'modificar o que esta abaixo desse assert'
+#CAMINHO_VOT2015 = '/home/swhants/Documentos/vot2015/'
+#assert 1==2,'modificar o que esta abaixo desse assert'
 PATH_SCRIPT = '/home/schrodinger/sdc/hugo/superSiamese/tracker.py'
+#PATH_SCRIPT = '/home/swhants/Documentos/superSiamese-master/tracker.py'
 NOME_ARQUIVO_SAIDA = 'filtro_adaptativo_mi_'
 listVideos = [ i for i in os.listdir(CAMINHO_VOT2015) if (not i.startswith('_')) and (os.path.isdir(os.path.join(CAMINHO_VOT2015,i)))]
 listVideos.sort()
 
 
+### Divisao da lista de videos em N_PARTES que eh o num de threads
+N_PARTES = NUM_THREAD
 
-MARGEM_GIGAS_LIVRES = 2
-NUM_THREAD = 4
+def get_new_list_video():
+	four_list_videos = []
+	aux = []
+	cont = 0
 
-free_memory = 0
-finish = False
+	for video in listVideos:
+		if cont == int(len(listVideos) / N_PARTES):
+			four_list_videos.append(aux)
+			aux = []
+			cont = 0
 
-def refresh_free_memory(free_memory):
-	free_memory.value = psutil.virtual_memory().available / (1024**3)
+		aux.append(video)
+		cont += 1
 
-def get_free_memory(free_memory):
-	return (free_memory.value - MARGEM_GIGAS_LIVRES)
+	four_list_videos.append(aux)
+	return four_list_videos
 
-def has_finished(cont_video):
-	for i in range(len(listVideos)):
-		if(cont_video[i] != -1):
-			return 0
-	return 1
+four_list_videos = get_new_list_video()
+### ~Divisao da lista de videos em N_PARTES
 
-def runner(lock, id, cont, free_memory, pos_list_video, finish, parametro):
+
+
+def has_finished(list_video_finished):
+	for i in list_video_finished:
+		if(not i):
+			return False
+	return True
+
+def runner( id, cont, list_video, parametro):
+	list_video_finished = [False] * len(list_video)
+
+	i = 0
 	while(True):
-		lock.acquire()
-
-		if(finish.value):
-			break
-
-		time.sleep(90)		# Talvez aumentar na Xodinha
-
-		try:
-			if(cont.value < len(listVideos)):
-				if(pos_list_video[cont.value] != -1):
-
-					videoName = listVideos[cont.value]
-					size_video = vm.gbPerVideo(os.path.join(CAMINHO_VOT2015,videoName))
-
-					refresh_free_memory(free_memory)
-
-					if size_video < get_free_memory(free_memory):
-
-						pos_list_video[cont.value] = -1
-						finish.value = has_finished(pos_list_video)
-
-						lock.release()
-
-						try:
-							os.mkdir(os.path.join(CAMINHO_VOT2015,videoName,'__log__'))
-							print('videoName: ', videoName)
-							os.system('python ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' ' + CAMINHO_VOT2015 + ' ' + str(parametro))
-
-						except:
-							print('videoName: ', videoName)
-							os.system('python ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' '  + CAMINHO_VOT2015 + ' ' +str(parametro) )
-
-					else:
-						lock.release()
-						time.sleep(5)
-
+		if(i < len(list_video)):
+			if(not list_video_finished[i]):
+				videoName = list_video[i]
+				if (NOME_ARQUIVO_SAIDA+str(parametro)) in os.listdir(os.path.join(CAMINHO_VOT2015,videoName,'__log__')):
+					list_video_finished[i] = True
+					i += 1
 
 				else:
-					cont.value += 1
-					lock.release()
-					time.sleep(5)
+					try:
+						os.mkdir(os.path.join(CAMINHO_VOT2015,videoName,'__log__'))
+						print('videoName: ', videoName)
+						os.system('python3.6 ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' ' + CAMINHO_VOT2015 + ' ' + str(parametro))
 
+					except:
+						print('videoName: ', videoName)
+						os.system('python3.6  ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' '  + CAMINHO_VOT2015 + ' ' +str(parametro) )
 
+					list_video_finished[i] = True
+			
 			else:
-				cont.value = 0
-				lock.release()
-				time.sleep(5)
-		lock.release()
-		finally:
-			pass
+				if(has_finished(list_video_finished)):
+					break
+				i += 1
+		else:
+			i = 0
 
 def main():
-
 	for parametro in listaDeParametros:
-		lock = multiprocessing.Lock()
+
 		cont = multiprocessing.Value('i',0)
 		finish = multiprocessing.Value('i',0)
 		free_memory = multiprocessing.Value('d',0.0)
@@ -100,7 +93,7 @@ def main():
 
 		list_process = []
 		for id_thread in range(NUM_THREAD):
-			p = multiprocessing.Process(target=runner, args=(lock, id_thread, cont, free_memory, pos_list_video, finish, parametro))
+			p = multiprocessing.Process(target=runner, args=( id_thread, cont, four_list_videos[id_thread],  parametro))
 			list_process.append(p)
 			p.start()
 
