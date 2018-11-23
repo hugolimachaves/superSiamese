@@ -6,7 +6,7 @@ from multiprocessing import Pool
 import multiprocessing
 import videoMemory as vm
 
-MARGEM_GIGAS_LIVRES = 4
+
 NUM_THREAD = 24
 
 listaDeParametros = [0.1,0.001,0.05,0.005,1]
@@ -60,7 +60,7 @@ def runner( id, cont, list_video, parametro):
 		if(i < len(list_video)):
 			if(not list_video_finished[i]):
 				videoName = list_video[i]
-				if (NOME_ARQUIVO_SAIDA+str(parametro)) in os.listdir(os.path.join(CAMINHO_VOT2015,videoName,'__log__')):
+				if (NOME_ARQUIVO_SAIDA+str(parametro)) in os.listdir(os.path.join(CAMINHO_VOT2015,videoName,'__log__')): # se encontrar o voce pode pular e nao processar
 					list_video_finished[i] = True
 					i += 1
 
@@ -68,11 +68,11 @@ def runner( id, cont, list_video, parametro):
 					try:
 						os.mkdir(os.path.join(CAMINHO_VOT2015,videoName,'__log__'))
 						print('videoName: ', videoName)
-						os.system('python3.6 ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' ' + CAMINHO_VOT2015 + ' ' + str(parametro))
+						os.system('python3.5 ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' ' + CAMINHO_VOT2015 + ' ' + str(parametro))
 
 					except:
 						print('videoName: ', videoName)
-						os.system('python3.6  ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' '  + CAMINHO_VOT2015 + ' ' +str(parametro) )
+						os.system('python3.5  ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' '  + CAMINHO_VOT2015 + ' ' +str(parametro) )
 
 					list_video_finished[i] = True
 			

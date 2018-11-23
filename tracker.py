@@ -46,7 +46,7 @@ CAMINHO_DATASET = '/home/hugo/Documents/Mestrado/vot2015'
 
 FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 5 # infinito ==  original
 
-IN_A_SERVER = False
+IN_A_SERVER = True
 SIAMESE_STRIDE = 8
 SIAMESE_DESCRIPTOR_DIMENSION = 256
 NUMBER_OF_EXEMPLAR_DESCRIPTOR = 6
@@ -859,7 +859,8 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	zFeat_original = sess2.run(zFeatOp2, feed_dict={exemplarOp2: zCrop_original})
 	zFeat_original = np.transpose(zFeat_original, [1, 2, 3, 0])
 	template_original = tf.constant(zFeat_original, dtype=tf.float32)
-	template = np.array(template_original)
+	#template = np.array(template_original)
+	template = tf.identity(template_original)
 	template_acumulado = np.array(template)
 	scoreOp_original = sn.buildInferenceNetwork(instanceOp, template_original, opts, isTrainingOp)
 	writer2.add_graph(sess2.graph)
@@ -870,9 +871,10 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 
 	superDescritor = SuperTemplate()
 	superDescritor.addInstance(zFeat)
+	
 
 	for frame in range(POSICAO_PRIMEIRO_FRAME, nImgs):
-
+		
 		im = get_next_frame(imgFiles, frame)
 
 		print(('frame ' + str(frame+1)).center(80,'*'))
@@ -907,15 +909,15 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			#template = superDescritor.progressiveTemplate()
 			#template = superDescritor.nShotTemplate(3)
 			#template = superDescritor.innovativeTemplate(3)
-			if frame < 1:
+			
+			
+			if frame <FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
 				template = template_original
-
-			print("shape de template antes de entrar na funcao do filtro adaptativo: ",template[0,1,:,0].shape )
 			
 			#filtro adaptativo logo abaixo:
 			template = filtroAdaptativo(template,zFeat,mi)
 			#~filtro adaptativo
-			
+		
 			
 			scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
 			score = sess.run(scoreOp, feed_dict={instanceOp: xCrops})
