@@ -15,6 +15,9 @@ from ctypes import *
 from sklearn.neighbors import KNeighborsClassifier
 import random as rn
 import argparse
+import json
+import socket
+import localParameters as lp
 
 
 
@@ -42,7 +45,6 @@ K = 0.01#0.04
 MAX_OBJECT_MODEL_ONE_DIM = 10
 OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM = 50
 TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM = MAX_OBJECT_MODEL_ONE_DIM * OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM
-CAMINHO_DATASET = '/home/hugo/Documents/Mestrado/vot2015'
 
 FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 5 # infinito ==  original
 
@@ -55,6 +57,9 @@ FRAMES_COM_MEDIA_ESPACIAL = [POSICAO_PRIMEIRO_FRAME] # lista com o frames onde a
 MI = 0.01#0.1 # parametro do filtro adaptativo - 0 == original.
 
 tf.set_random_seed(1) #os.environ['PYTHONHASHSEED'] = '0' #rn.seed(12345) #np.random.seed(42)
+
+
+CAMINHO_DATASET = lp.getInJson('sistema','datasetPath')
 
 def _get_Args():
 	parser = argparse.ArgumentParser()

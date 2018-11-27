@@ -1,18 +1,54 @@
 [
-	{"sistema":
-		{
-			"sistema":"linux",
-			"computador":"hugo",
-			"datasetPath": "/home/hugo/Documents/Mestrado/vot2015",
-			
-		},
-	"tracker":
-		{
-			"trackerPath": "/home/hugo/Documents/Mestrado/neoSiamese",
-			"groundTruthFile": "groundtruth.txt",
-			"tracker_output" : "nome_do_arquivo_de_saida_do_tracker",
-			"threshold_IoU" : 0.25	
-		}
+	
+		{"sistema":
+			{
+				"SO":"linux",
+				"computador":"hc",
+				"nickname": "hugo pessoal",
+				"datasetPath": "/home/hugo/Documents/Mestrado/vot2015"
+			},
+		"tracker":
+			{
+				"trackerPath": "/home/hugo/Documents/Mestrado/neoSiamese",
+				"groundTruthFile": "groundtruth.txt",
+				"show" : false
+			}
 
-	}
+		}
+	,
+
+		{"sistema":
+			{
+				"SO":"windows",
+				"computador":"DESKTOP-668IF5K",
+				"nickname": "dijkstra",
+				"datasetPath": "C:\\Users\\hugol\\Documents\\vot2015"
+			},
+		"tracker":
+			{
+				"trackerPath": "C:\\Users\\hugol\\Documents\\superSiamese",
+				"groundTruthFile": "groundtruth.txt",
+				"show" : false
+			}
+
+		}
+	,
+
+		{"sistema":
+			{
+				"SO":"linux",
+				"computador":"schrodinger",
+				"nickname" : "xodinha",
+				"datasetPath": "/home/schrodinger/sdc/hugo/vot2015"
+			},
+		"tracker":
+			{
+				"trackerPath": "/home/schrodinger/sdc/hugo/superSiamese",
+				"groundTruthFile": "groundtruth.txt",
+				"show" : false
+			}
+
+		}
+	
+
 ]
