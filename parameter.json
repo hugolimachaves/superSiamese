@@ -1,0 +1,18 @@
+[
+	{"sistema":
+		{
+			"sistema":"linux",
+			"computador":"hugo",
+			"datasetPath": "/home/hugo/Documents/Mestrado/vot2015",
+			
+		},
+	"tracker":
+		{
+			"trackerPath": "/home/hugo/Documents/Mestrado/neoSiamese",
+			"groundTruthFile": "groundtruth.txt",
+			"tracker_output" : "nome_do_arquivo_de_saida_do_tracker",
+			"threshold_IoU" : 0.25	
+		}
+
+	}
+]

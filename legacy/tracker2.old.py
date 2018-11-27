@@ -14,8 +14,6 @@ from parameters import configParams
 from ctypes import *
 from sklearn.neighbors import KNeighborsClassifier
 import random as rn
-import argparse
-
 
 
 DEBUG_TRACKER = False
@@ -24,7 +22,7 @@ MOSTRAR_OBJ_MODEL = False
 DEBUG_3 = False
 DIM_DESCRIPTOR = 256
 ONE_DIMENSION = 1
-ATOMIC_SIZE = 87
+ATOMIC_SIZE = 88
 SIZE_ARRAY = 32
 LAST_ADDED = -1
 SIZE_DESCRIPTOR = 256
@@ -42,64 +40,47 @@ K = 0.01#0.04
 MAX_OBJECT_MODEL_ONE_DIM = 10
 OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM = 50
 TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM = MAX_OBJECT_MODEL_ONE_DIM * OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM
-CAMINHO_DATASET = '/home/hugo/Documents/Mestrado/vot2015'
-
-FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 5 # infinito ==  original
-
-IN_A_SERVER = False
-SIAMESE_STRIDE = 8
-SIAMESE_DESCRIPTOR_DIMENSION = 256
-NUMBER_OF_EXEMPLAR_DESCRIPTOR = 6
-AMPLITUDE_DESLOCAMENTO = 0 # define a amplitude da realizacao da media de templantes no espaco - 0 == original
-FRAMES_COM_MEDIA_ESPACIAL = [POSICAO_PRIMEIRO_FRAME] # lista com o frames onde a media espacial sera realizada - [] ==  original
-MI = 0.01#0.1 # parametro do filtro adaptativo - 0 == original.
-
-tf.set_random_seed(1) #os.environ['PYTHONHASHSEED'] = '0' #rn.seed(12345) #np.random.seed(42)
-
-def _get_Args():
-	parser = argparse.ArgumentParser()
-	parser.add_argument("video", help= "nome da pasta do video")
-	parser.add_argument("nome", help = "nome do arquivo de saida")
-	parser.add_argument("caminho", help ="caminho ABSOLUTO para o dataset")
-	parser.add_argument("parametro", help = "parametro a ser setado para esse tracker")
-	return parser.parse_args()
 
 
-class SuperTemplate:
-	'''
-	retorna um superTemplate formato tf.constant
-	'''
-	templateList = []
-
-	def __init__(self):
-		pass
-
-	def conservativeTemplate(self):
-		return tf.constant( sum(self.templateList[:round(len(self.templateList)/2)])/round(len(self.templateList)/2) , dtype=tf.float32) 
-
-	def oneShotTemplate(self):
-		return tf.constant( self.templateList[0] , dtype=tf.float32) 
-	
-	def innovativeTemplate(self,nLast):
-		return tf.constant( sum(self.templateList[-nLast:])/len(self.templateList[-nLast:]) , dtype=tf.float32) 
-		
-	def progressiveTemplate(self):
-		return tf.constant( sum(self.templateList[-round(len(self.templateList)/2):])/round(len(self.templateList)/2) , dtype=tf.float32) 
-
-	def nShotTemplate(self,nshots):
-		return tf.constant( sum(self.templateList[:nshots])/len(self.templateList[:nshots]) , dtype=tf.float32) 
-
-	def cummulativeTemplate(self):
-		return tf.constant( sum(self.templateList)/len(self.templateList) , dtype=tf.float32) 
-
-	def addInstance(self,instance):
-		template = np.array(instance)
-		self.templateList.append(template)
+tf.set_random_seed(1)
+#os.environ['PYTHONHASHSEED'] = '0'
+#rn.seed(12345)
+#np.random.seed(42)
 
 
+
+NOME_VIDEO = 'bag'
+YML_FILE_NAME = 'parameters.yml'
+CAMINHO_EXEMPLO_VOT2015 = '/home/hugo/Documents/Mestrado/vot2015/' + NOME_VIDEO
+#CAMINHO_EXEMPLO_DATASET_TLD = '/home/hugo/Documents/Mestrado/codigoRastreador/dataset/exemplo/01-Light_video00001'
+PARAMETERS_PATH = os.path.join(CAMINHO_EXEMPLO_VOT2015,YML_FILE_NAME)
+print('caminho do yml:',PARAMETERS_PATH)
+
+shared_library = CDLL('TLD/bin/Debug/libTLD.so')
+
+'''
+ good_windows_hull[ N ][ 5 ]
+   - N: Numero de bb no frame
+   - 5: (Centro_X, Centro_Y, Width, Height, Frame_Number)
+
+ positive_obj_model[ P ][ N ][ 5 ]
+   - P: Numero de frames que retornaram bb ate o momento
+   - N: Numero de bb do frame no p-esimo frame
+   - 5: (Centro_X, Centro_Y, Width, Height, Frame_Number)
+
+ negative_obj_model[ P ][ N ][ 5 ]
+   - P: Numero de frames que retornaram bb ate o momento
+   - N: Numero de bb do frame no p-esimo frame
+   - 5: (Centro_X, Centro_Y, Width, Height, Frame_Number)
+
+ good_windows[ P ][ N ][ 5 ]
+   - P: Numero de frames que retornaram bb ate o momento
+   - N: Numero de bb do frame no p-esimo frame
+   - 5: (Centro_X, Centro_Y, Width, Height, Frame_Number)
+'''
 
 class Generation:
-
+	
 	def __init__(self,opts,siamiseNetWorkLocal):
 		self.minimumSiameseNetPlaceHolder = tf.placeholder(tf.float32, [ONE_DIMENSION, opts['minimumSize'], opts['minimumSize'], RGB])
 		tf.convert_to_tensor(False, dtype='bool', name='is_training')
@@ -107,7 +88,7 @@ class Generation:
 		self.zMinimumPreTrained =siamiseNetWorkLocal.buildExemplarSubNetwork(self.minimumSiameseNetPlaceHolder,opts,isTrainingOp)
 		self.tensorFlowSession = tf.Session()
 		tf.initialize_all_variables().run(session=self.tensorFlowSession)
-
+		
 
 	def  extend(self,bb,margin):
 		bb_aux = []
@@ -126,7 +107,7 @@ class Generation:
 		bottom  = round(bb[3] + top)
 
 		cropped = img.crop([left,top,right,bottom])
-
+		
 		return cropped
 
 	def convertYXWH2LTRB(self,yxwh):
@@ -141,7 +122,7 @@ class Generation:
 	def get_image_cropped2(self, img, bb, margem):
 
 		bb = self.convertYXWH2LTRB(bb[:4])
-
+	
 
 		bb = self.extend(bb,margem)
 
@@ -160,7 +141,7 @@ class Generation:
 
 		img_cropped = img.crop(bb)
 		img_np = np.array(img_cropped)
-
+		
 		for i in range(RGB):
 
 			if(margin[0] is not 0):
@@ -189,14 +170,19 @@ class Generation:
 
 	def getDescriptor(self,bb,imageSource): # zMinimumFeatures = sess.run(zMinimumPreTrained, feed_dict={minimumSiameseNetPlaceHolder: zCropMinimum})
 		imImageSource = self.get_image_cropped2(imageSource,bb, 0.35) ##MARGEM
+		
 		#imImageSource.show()
+	
 		#imageSource.show()
 		#input('iaperta alguma coisa')
+
 		neoImageSource = imImageSource.resize((ATOMIC_SIZE,ATOMIC_SIZE))
+
 		npImageSource = np.array(neoImageSource)
 		npImageSource = npImageSource.reshape(1,npImageSource.shape[0],npImageSource.shape[1],3)
-		zMinimumFeatures = self.tensorFlowSession.run(self.zMinimumPreTrained, feed_dict={self.minimumSiameseNetPlaceHolder: npImageSource})
 
+		zMinimumFeatures = self.tensorFlowSession.run(self.zMinimumPreTrained, feed_dict={self.minimumSiameseNetPlaceHolder: npImageSource})
+		
 		return zMinimumFeatures
 
 class DeepDescription:
@@ -225,7 +211,7 @@ class DeepDescription:
 	negative_distances_tracker_candidate  = []
 	positive_similarity_tracker_candidate = []
 	negative_similarity_tracker_candidate = []
-
+	
 	__currentFrame = 0
 
 	def __init__(self):
@@ -246,9 +232,9 @@ class DeepDescription:
 
 		self.__currentFrame = currentFrame
 		return [], []
-
+	
 class Visualization:
-
+ 
 
 	def __init__(self, n_subWindows, size_subWindow,title, listFrames):
 
@@ -268,7 +254,6 @@ class Visualization:
 		ltrb.append(yxwh[0] + round(yxwh[3]/2) )
 		ltrb.append(yxwh[1] + round(yxwh[2]/2) )
 		return ltrb
-
 	'''
 	def addObjectModelVisualization(objecModel,img,): # formato para opencv: ltrb
 
@@ -287,7 +272,7 @@ class Visualization:
 
 		cv2.imshow(self._titulo,self._imagemModels)
 
-
+	
 	def destroyWindow(self):
 
 		try:
@@ -295,16 +280,17 @@ class Visualization:
 		except:
 			print('ERRO: Nao foi possivel destruir a janela')
 
+	
 	def _planarFromLinear(self,linear):
 		if linear == 0:
 			i = 0
 			j = 0
 		else: # verificar isso aqui
-
+			
 			j = linear%self._n_subwindows_per_dimension
 			i = int(linear/self._n_subwindows_per_dimension)%self._n_subwindows_per_dimension
 
-			''' errado
+			''' errado	
 			linear = self._n_subwindows_per_dimension**2%linear
 			j = linear%self._n_subwindows_per_dimension
 			i = int(linear/self._n_subwindows_per_dimension)
@@ -319,7 +305,8 @@ class Visualization:
 
 
 	def _get_modelo_shrinked_image(self,BB,imagem): # retorna a imagem shrinked referente ao frame enviado
-
+		
+		
 		# 'imagem' com o shape okay, nao e (0,0,3)
 		bb_ltrb = self.convertYXWH2LTRB(BB)
 		image_cropped = self.crop_image(imagem,bb_ltrb) # entra np.array --> sai PIL image;
@@ -364,6 +351,8 @@ imshow
 refreshModel
 
 '''
+	
+
 
 
 
@@ -372,7 +361,7 @@ generalDescriptor = DeepDescription()
 def convertSimilatiry(siameseDistance):
 	return np.exp(- K * siameseDistance) # retorna a distancia no TLD
 	#return 1.0 / (siameseDistance + 1.0) # retorna a distancia no TLD
-
+	
 def getLength(element): # verifica o tamanho total de elementos em uma estrutura de dados de dimensoes arbitrarias
 	if isinstance(element, list):
 		return sum(([getLength(i) for i in element]))
@@ -388,12 +377,12 @@ def distCandidatesToTheModel(deep_features_candidates, isPositive=True):
 		positiveLabel = [1 for i in feature_pos_obj_model]
 		labels = np.asarray(positiveLabel)
 		features = np.asarray(feature_pos_obj_model)
-
+	
 	else: # modelo negativo do object model
-		negativeLabel = [0 for i in feature_neg_obj_model]
+		negativeLabel = [0 for i in feature_neg_obj_model] 
 		labels = np.asarray(negativeLabel)
 		features = np.asarray(feature_neg_obj_model)
-
+	
 	distances = []
 	positions = []
 
@@ -401,7 +390,7 @@ def distCandidatesToTheModel(deep_features_candidates, isPositive=True):
 		knn_1 = KNeighborsClassifier(n_neighbors=1)
 		listFeatures = [bb for frame in features for bb in frame]
 		knn_1.fit(listFeatures, labels)
-
+		
 		for candidate in deep_features_candidates: # pega a menor distancia para cada candidato na lista deep_features_candidate
 			list_candidate = np.asarray(candidate)
 			dist,position = knn_1.kneighbors(list_candidate, n_neighbors=1, return_distance=True)
@@ -431,7 +420,7 @@ def detSimilarity(feature_a, feature_b):
 	for a, b in zip(feature_1, feature_2):
 		#print('(a - b) ** 2: ', (a - b) ** 2,'\n')
 		dist += (a - b) ** 2
-
+	
 	print('\n\ndist: ',np.sqrt(dist))
 	print('convertSimilatiry: ',convertSimilatiry(float(np.sqrt(dist))))
 	#print('feature_1: ', feature_1.reshape(-1))
@@ -450,7 +439,7 @@ def detSimilarity(feature_a, feature_b):
 def read_data(array, array_size, frame, name=0):
 	bb_list = []
 	is_empty = True
-
+	
 	if DEBUG_PRINT_ARRAY and name is not 0:
 		if(name == 1):
 			print('\n\tNegativo ', end='')
@@ -490,6 +479,282 @@ def read_data(array, array_size, frame, name=0):
 
 	return bb_list, is_empty
 
+
+#'frame' se refere ao numero do frame que esta sendo processado no codigo .py
+#/home/hugo/Documents/Mestrado/codigoSiameseTLD/siameseTLD/dataset/exemplo/01-Light_video00001/parameters.yml
+def init_TLD_in_siameseFC(generated, imgs_pil, frame=1): 
+	'''
+	codigo de execucao do c/c++ aqui! 
+	Parametros: (frame ou void)
+	Retorno do codigo:
+	1) lista com as posicoes extraidas, 'lista1'. pode ser uma lista de estruturas de 5 valores,
+		(4 referentes a localizacao do frame, e um indicando se o modelo eh positivo-1- ou negativo-0)
+		Caso precise retornar um numero fixo de valores, entre em contato comigo. A principio, se precisar retornar
+		um vetor de tamanho fixo, adote um vetor de 100 estruturas de 5 posicoes. Onde nao ha nada preenchido, coloque
+		valores negativos, como: -1
+	2)Frame ao qual foi processada as informacoes, que alimentara a variavel: retorno_frame.
+	Vaviavel necessaria para garantir o processamento do mesmo frame.
+	'''
+
+	parameters_path = PARAMETERS_PATH.encode('utf-8')
+	retorno_frame = c_int() 	# numero do frame atual
+	size_negative = c_int(0)	# tamanho do vetor array objectModel negativo
+	size_positive = c_int(0) 	# tamanho do vetor array objectModel positivo
+	size_good_windows = c_int(0) 		# tamanho do vetor array good windows
+	size_good_windows_hull = c_int(0)	# tamanho do vetor array good_windows_hull (que e sempre 4)
+
+	array_good_windows		  = [-1] * WINDOW_SIZE 			# placeholders
+	array_good_windows_hull	  = [-1] * HULL_SIZE 			# placeholders
+	array_object_model_negative = [-1] * OBJECT_MODEL_SIZE 	# placeholders
+	array_object_model_positive = [-1] * OBJECT_MODEL_SIZE 	# placeholders
+
+	# fazendo a alocacao dos vetores, (*array_good_windows) --> posicao de memoria do vetor
+	array_good_windows 			= (c_float * WINDOW_SIZE) (*array_good_windows) 
+	array_good_windows_hull	 	= (c_float * 4) (*array_good_windows_hull)
+	array_object_model_negative = (c_float * OBJECT_MODEL_SIZE) (*array_object_model_negative) 
+	array_object_model_positive = (c_float * OBJECT_MODEL_SIZE) (*array_object_model_positive) 
+
+	shared_library.initializer_TLD(parameters_path, byref(retorno_frame), 
+								   array_object_model_positive, byref(size_positive), 
+								   array_object_model_negative, byref(size_negative),
+								   array_good_windows, byref(size_good_windows),
+								   array_good_windows_hull,  byref(size_good_windows_hull))
+	
+	print('\nPy - init-  Frame de entrada: '+ str(frame)+ ' Frame de retorno: ' + str(retorno_frame.value) + '\n')
+	assert (frame == retorno_frame.value), "Conflito nos frames"
+
+	bb_list_negativo, _ 	= read_data(array_object_model_negative, size_negative.value, frame, 1)
+	bb_list_positivo, _ 	= read_data(array_object_model_positive, size_positive.value, frame, 2)
+	bb_list_good_window, _	= read_data(array_good_windows, size_good_windows.value, frame)
+	bb_good_windows_hull, _	= read_data(array_good_windows_hull, size_good_windows_hull.value, frame)
+
+	print('good_window Hull'.center(50,'*') , '\n', bb_good_windows_hull)
+
+	'''
+	print('lista de positivo:')
+	print(bb_list_positivo)
+	print('lista de negativo')
+	print(bb_list_negativo)
+	print('fim')
+	'''
+	print('init negativo')
+	addModel(generated, bb_list_negativo,	  generalDescriptor.negative_obj_model_bb, generalDescriptor.negative_obj_model_features, imgs_pil[POSICAO_PRIMEIRO_FRAME])
+	print('init positivo')
+	addModel(generated, bb_list_positivo,	  generalDescriptor.positive_obj_model_bb, generalDescriptor.positive_obj_model_features, imgs_pil[POSICAO_PRIMEIRO_FRAME]) 
+	print('init good window')
+	addModel(generated, bb_list_good_window,  generalDescriptor.good_windows_bb,	   generalDescriptor.good_windows_features,		  imgs_pil[POSICAO_PRIMEIRO_FRAME])
+	print('init good hull')
+	addModel(generated, bb_good_windows_hull, generalDescriptor.good_windows_hull_bb,  generalDescriptor.good_windows_hull_features,  imgs_pil[POSICAO_PRIMEIRO_FRAME])
+
+
+def TLD_parte_1(generated, imgs_pil, frame):
+	retorno_frame = c_int()
+
+	size_candidates = c_int()
+	size_positive   = c_int()
+	size_negative   = c_int()
+	size_bb_tracker = c_int()
+
+	array_bb_candidates			= [-1] * ARRAY_SIZE
+	array_object_model_positive = [-1] * ARRAY_SIZE
+	array_object_model_negative = [-1] * ARRAY_SIZE
+
+	array_bb_candidates			= (c_float * ARRAY_SIZE) (*array_bb_candidates)
+	array_object_model_positive = (c_float * ARRAY_SIZE) (*array_object_model_positive)
+	array_object_model_negative = (c_float * ARRAY_SIZE) (*array_object_model_negative)
+
+	array_bb_tracker = [-1] * 4
+	array_bb_tracker = (c_float * 4) (*array_bb_tracker)
+
+	shared_library.TLD_function_1(byref(retorno_frame), array_bb_candidates, byref(size_candidates),
+									array_object_model_positive, byref(size_positive), 
+									array_object_model_negative, byref(size_negative),
+									array_bb_tracker, byref(size_bb_tracker))
+	
+	print('\nPy - part1 Frame de entrada: '+ str(frame)+ ' Frame de retorno: ' + str(retorno_frame.value))
+	assert (frame == retorno_frame.value), "Py - Conflito nos frames"
+
+	candidates = []
+	bb_tracker = []
+
+	is_candidates_empty = True
+	is_bb_tracker_empty = True
+
+	bb_list_negativo, 		   _ = read_data(array_object_model_negative, size_negative.value, frame, 1)
+	bb_list_positivo, 		   _ = read_data(array_object_model_positive, size_positive.value, frame, 2)
+	bb_list_candidate,		   _ = read_data(array_bb_candidates, size_candidates.value, frame, 3)
+	bb_single_element_tracker, _ = read_data(array_bb_tracker, size_bb_tracker.value, frame, 4)
+
+	'''
+	print('\nlista de positivo:')
+	print(bb_list_positivo)
+	print('lista de negativo')
+	print(bb_list_negativo)
+	print('fim')
+	'''
+
+	'''
+	 candidates[ N ][ 5 ]
+	   - N: Numero de bb no frame
+	   - 5: (Centro_X, Centro_Y, Width, Height, Frame_Number)
+
+	 bb_tracker[ 1 ][ 5 ]
+	   - 1: Para ser considerado uma lista no algoritmos
+	   - 5: (Centro_X, Centro_Y, Width, Height, Frame_Number)
+	'''
+
+	posicao = frame - 1
+
+	is_neg_empty = addModel(generated, bb_list_negativo, generalDescriptor.negative_obj_model_bb, generalDescriptor.negative_obj_model_features, imgs_pil[posicao])
+	is_pos_empty = addModel(generated, bb_list_positivo, generalDescriptor.positive_obj_model_bb, generalDescriptor.positive_obj_model_features, imgs_pil[posicao])
+	is_bb_tracker_empty = addModel(generated, bb_single_element_tracker, generalDescriptor.tracker_bb, generalDescriptor.tracker_features, imgs_pil[posicao])
+	
+	print('\nbb list negativo',bb_list_negativo)
+
+	list_feature = []
+	list_bb 	 = []
+	is_candidates_empty = addModel(generated, bb_list_candidate, list_bb, list_feature, imgs_pil[posicao])
+	generalDescriptor.setCandidates(list_bb, list_feature, frame)
+
+	# Calculo das distancias e similaridades para os candidatos
+	print('Py -tamanho de positive_obj_model_features: ', len(generalDescriptor.positive_obj_model_features))
+	print('Py -tamanho de negative_obj_model_features: ', len(generalDescriptor.negative_obj_model_features))
+	_ , features_candidates = generalDescriptor.getCandidates(frame)
+	if not is_candidates_empty:
+		for candidate in features_candidates:
+			distances_candidate = []
+			for positive in generalDescriptor.positive_obj_model_features:
+				dist = detSimilarity(candidate, positive)
+				distances_candidate.append(np.float(dist))	# Lista das distancias em relacao as features positivas
+			
+			if len(distances_candidate):
+				generalDescriptor.positive_distances_candidates.append(distances_candidate)	# Lista das distancias para cada candidato
+				generalDescriptor.positive_similarity_candidates.append([convertSimilatiry(distance) for distance in distances_candidate])
+		
+			#print('distances_candidate ',distances_candidate)
+			#print('generalDescriptor.positive_similarity_candidates ',generalDescriptor.positive_similarity_candidates)
+
+		for candidate in features_candidates:
+			distances_candidate = []
+			for negative in generalDescriptor.negative_obj_model_features:
+				dist = detSimilarity(candidate, negative)
+				distances_candidate.append(dist)	# Lista das distancias em relacao as features negativas
+			
+			if len(distances_candidate):
+				generalDescriptor.negative_distances_candidates.append(distances_candidate)	# Lista das distancias para cada candidato
+				generalDescriptor.negative_similarity_candidates.append([convertSimilatiry(distance) for distance in distances_candidate])
+
+			#print('distances_candidate ',distances_candidate)
+			#print('generalDescriptor.negative_similarity_candidates ',generalDescriptor.negative_similarity_candidates)
+	
+	# Calculo das distancias e similaridades para a BB do candidato do Tracker
+	if not is_bb_tracker_empty:
+		for positive in generalDescriptor.positive_obj_model_features:
+			dist = detSimilarity(generalDescriptor.tracker_features[LAST_ADDED], positive)
+			generalDescriptor.positive_distances_tracker_candidate.append(dist)	# Lista das distancias em relacao as features positivas
+			generalDescriptor.positive_similarity_tracker_candidate.append(convertSimilatiry(dist))
+
+		for negative in generalDescriptor.negative_obj_model_features:
+			dist = detSimilarity(generalDescriptor.tracker_features[LAST_ADDED], negative)
+			generalDescriptor.negative_distances_tracker_candidate.append(dist)	# Lista das distancias em relacao as features negativas
+			generalDescriptor.negative_similarity_tracker_candidate.append(convertSimilatiry(dist))
+
+def TLD_parte_2(generated, imgs_pil, frame):
+	
+	if(MOSTRAR_OBJ_MODEL):
+		print('\n')
+		print('Positive object model'.center(70,'+'))
+		print(generalDescriptor.positive_obj_model_bb)
+		print('Negative object model'.center(70,'-'))
+		print(generalDescriptor.negative_obj_model_bb)
+		print('='.center(70,'='))
+
+	#max_sim_pos_candidates = max(generalDescriptor.positive_similarity_candidates)
+
+	if(len(generalDescriptor.positive_similarity_tracker_candidate)): # Verifica se a lista esta vazia
+		max_sim_positive_tracker_candidate = max(generalDescriptor.positive_similarity_tracker_candidate)
+		pos_sim_positive_tracker_candidate = generalDescriptor.positive_similarity_tracker_candidate.index(max_sim_positive_tracker_candidate)
+
+	if(len(generalDescriptor.negative_similarity_tracker_candidate)): # Verifica se a lista esta vazia
+		max_sim_negative_tracker_candidate = max(generalDescriptor.negative_similarity_tracker_candidate)
+		pos_sim_negative_tracker_candidate = generalDescriptor.negative_similarity_tracker_candidate.index(max_sim_negative_tracker_candidate)
+
+	lista_positive_simi_candidates = list( np.asarray( generalDescriptor.positive_similarity_candidates ).reshape(-1) )
+	lista_negative_simi_candidates = list( np.asarray( generalDescriptor.negative_similarity_candidates ).reshape(-1) )
+
+	lista_positive_simi_tracker_candidate = list( np.asarray( generalDescriptor.positive_similarity_tracker_candidate ).reshape(-1) )
+	lista_negative_simi_tracker_candidate = list( np.asarray( generalDescriptor.negative_similarity_tracker_candidate ).reshape(-1) )
+	
+	size_bb_tracker = c_int()
+
+	array_bb_tracker = [-1] * 4
+	array_bb_tracker = (c_float * 4) (*array_bb_tracker)
+	'''
+	print('len        negative_simi_tracker_candidate ): ', len(lista_negative_simi_tracker_candidate))
+	print('getLength  negative_simi_tracker_candidate ): ', getLength(lista_negative_simi_tracker_candidate))
+	print(lista_negative_simi_candidates)
+	print('')
+	print('len        positive_simi_tracker_candidate ): ', len(lista_positive_simi_tracker_candidate))
+	print('getLength  positive_simi_tracker_candidate ): ', getLength(lista_positive_simi_tracker_candidate))
+	print(lista_positive_simi_candidates)
+	'''
+	
+	#print('Py generalDescriptor.positive_similarity_tracker_candidate ', generalDescriptor.positive_similarity_tracker_candidate)
+	#print('Py generalDescriptor.negative_similarity_tracker_candidate ', generalDescriptor.negative_similarity_tracker_candidate)
+
+	positive_simi_cand	= (c_float * len(lista_positive_simi_candidates))	(*lista_positive_simi_candidates)
+	negative_simi_cand	= (c_float * len(lista_negative_simi_candidates))	(*lista_negative_simi_candidates)
+	positive_simi_tracker = (c_float * len(lista_positive_simi_tracker_candidate)) (*lista_positive_simi_tracker_candidate)
+	negative_simi_tracker = (c_float * len(lista_negative_simi_tracker_candidate)) (*lista_negative_simi_tracker_candidate)
+
+	size_pos_sim_cand 	   = c_int(len(lista_positive_simi_candidates))
+	size_neg_sim_cand 	   = c_int(len(lista_negative_simi_candidates))
+
+	size_pos_sim_tracker   = c_int(len(lista_positive_simi_tracker_candidate))
+	size_neg_sim_tracker   = c_int(len(lista_negative_simi_tracker_candidate))
+
+	size_good_windows	   = c_int(0) 	# tamanho do vetor array good windows
+	size_good_windows_hull = c_int(0) 	# tamanho do vetor array good_windows_hull (que e sempre 4)
+
+	array_good_windows	  = [-1] * ARRAY_SIZE
+	array_good_windows_hull = [-1] * ARRAY_SIZE
+
+	array_good_windows	  = (c_float * ARRAY_SIZE) (*array_good_windows)
+	array_good_windows_hull = (c_float * ARRAY_SIZE) (*array_good_windows_hull)
+
+	if(DEBUG_TRACKER):
+		print('Positive similarity do tracker'.center(50,'&'))
+		print(*positive_simi_tracker)
+		print('~Positive similarity do tracker'.center(50,'&'))
+
+
+	shared_library.TLD_function_2(positive_simi_cand, byref(size_pos_sim_cand),
+								  negative_simi_cand, byref(size_neg_sim_cand),
+								  positive_simi_tracker, byref(size_pos_sim_tracker),
+								  negative_simi_tracker, byref(size_neg_sim_tracker),
+								  array_good_windows, byref(size_good_windows),
+								  array_good_windows_hull, byref(array_good_windows_hull),
+								  array_bb_tracker, byref(size_bb_tracker))
+
+	bb_list_good_window, is_good_window_empty = read_data(array_good_windows, size_good_windows.value, frame)
+	bb_good_windows_hull, is_good_hull_empty = read_data(array_good_windows_hull, size_good_windows_hull.value, frame)
+	bb_single_element_tracker, _ = read_data(array_bb_tracker, size_bb_tracker.value, frame, 0)
+
+	print('Py New BB Tracker: ', bb_single_element_tracker)
+
+	posicao = frame - 1
+
+	addModel(generated, bb_list_good_window,  generalDescriptor.good_windows_bb,	   generalDescriptor.good_windows_features, imgs_pil[posicao])
+	addModel(generated, bb_good_windows_hull, generalDescriptor.good_windows_hull_bb,  generalDescriptor.good_windows_hull_features, imgs_pil[posicao])
+	
+	generalDescriptor.positive_similarity_candidates = []
+	generalDescriptor.negative_similarity_candidates = []
+	generalDescriptor.positive_similarity_tracker_candidate = []
+	generalDescriptor.negative_similarity_tracker_candidate = []
+
+	#return bb_list_good_window, is_good_window_empty, bb_good_windows_hull, is_good_hull_empty
+	return bb_single_element_tracker[0][:-1]
+
 def getOpts(opts):
 	print("config opts...")
 	opts['numScale'] = 3
@@ -497,7 +762,7 @@ def getOpts(opts):
 	opts['scalePenalty'] = 0.9745
 	opts['scaleLr'] = 0.59
 	opts['responseUp'] = 16
-	opts['windowing'] =  'cosine' #''uniform'#'
+	opts['windowing'] = 'cosine'
 	opts['wInfluence'] = 0.176
 	opts['exemplarSize'] = 127
 	opts['instanceSize'] = 255
@@ -507,8 +772,8 @@ def getOpts(opts):
 	opts['trainWeightDecay'] = 5e-04
 	opts['stddev'] = 0.03
 	opts['subMean'] = False
-	opts['minimumSize'] = 'invalido'
-	opts['video'] = 'invalido'
+	opts['minimumSize'] = ATOMIC_SIZE
+	opts['video'] = NOME_VIDEO
 	opts['modelPath'] = './models/'
 	opts['modelName'] = opts['modelPath']+"model_tf.ckpt"
 	opts['summaryFile'] = './data_track/'+opts['video']+'_20170518'
@@ -568,7 +833,24 @@ def loadVideoInfo(basePath, video):
 	groundTruth = open(groundTruthFile, 'r')
 	reader = groundTruth.readline()
 	region = [float(i) for i in reader.strip().split(",")]
+	
+	cx, cy, w, h = getAxisAlignedBB(region)
+	pos = [cy, cx]
+	targetSz = [h, w]
 
+	imgs = frameGenerator(videoPath)
+
+	return imgs, np.array(pos), np.array(targetSz)
+
+#mais generico, para rodar com o dataset a sua escolha
+def loadVideoInfo2(basePath, relativePathToTheFrames,):
+	videoPath = os.path.join(basePath, relativePathToTheFrames)
+	groundTruthFile = os.path.join(basePath, video, 'groundtruth.txt')
+
+	groundTruth = open(groundTruthFile, 'r')
+	reader = groundTruth.readline()
+	region = [float(i) for i in reader.strip().split(",")]
+	print('Exemplo de variavel do tipo region: ', region)
 	cx, cy, w, h = getAxisAlignedBB(region)
 	pos = [cy, cx]
 	targetSz = [h, w]
@@ -685,80 +967,16 @@ def trackerEval(score, sx, targetPosition, window, opts):
 
 	return newTargetPosition, bestScale
 
-def getCumulativeTemplate(zFeat,frame,template):
-	return (tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template * (frame/(frame+1)))
-
-
-def filtroAdaptativo(template,zFeat,mi):
-
-	#filtro adaptativo
-	y = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
-	e = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
-	d = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
-	template = tf.Session().run(template) # casting para np array
-
-	for i in range(NUMBER_OF_EXEMPLAR_DESCRIPTOR):
-		for j in range(NUMBER_OF_EXEMPLAR_DESCRIPTOR):
-			
-			template256 = np.array(template[i,j,:,0])
-			zFeat256 = np.array(zFeat[i,j,:,0])
-			template256 = np.reshape(template256,(256,1))
-			zFeat256 = np.reshape(zFeat256,(256,1))
-			y[i,j] = np.inner(np.reshape(template256,-1) , np.reshape(zFeat256,256))
-			d[i,j] = np.inner(template[i,j,:,0],template[i,j,:,0]) 
-			e[i,j] = d[i,j] - y[i,j]
-			template[i,j,:,0] = template[i,j,:,0] - mi*zFeat[i,j,:,0]*e[i,j] 
-	template = tf.constant(template , dtype=tf.float32) # casting para np array ser uma tf constant
-	return template
-
-def spatialTemplate(targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False ):
-	#construção da criaçao do objeto com media espacial
-	
-	#TODO - Isso aqui sera chamado fora da funcao. A ser Feito
-	if frame in FRAMES_COM_MEDIA_ESPACIAL:
-		amplitude = AMPLITUDE_DESLOCAMENTO
-		assert 1==2 # definir a amplitude de deslocamento
-		assert amplitude <= SIAMESE_STRIDE # nao faz sentido um deslocamento maior que esse, pois voce ira pegar "celulas de descricao" iguais - lembre-se que que o stride e 8	
-	else:
-		amplitude = 0
-
-	spatial_cont = 0
-	#quando a media espacial na for desejada, ambos lacos aninhados serao executarao apenas uma iteracao
-	for desloc_x in range(-amplitude,amplitude+1):
-		for desloc_y in range(-amplitude,amplitude+1):
-			targetPosition[0] = targetPosition[0] + desloc_x
-			targetPosition[1] = targetPosition[1] + desloc_y
-			zCrop, _ = getSubWinTracking(im, targetPosition, (opts['exemplarSize'], opts['exemplarSize']), (np.around(sz), np.around(sz)), avgChans)
-			zCrop = np.expand_dims(zCrop, axis=0)
-			zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
-			zFeat = np.transpose(zFeat, [1, 2, 3, 0])
-			zFeat.reshape(1,NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR,SIAMESE_DESCRIPTOR_DIMENSION)
-			template = tf.constant(zFeat , dtype=tf.float32) * (1/(spatial_cont+1)) + template*(spatial_cont/(spatial_cont+1))
-			spatial_cont+=1 # caso seja feita uma media espacial, deve-se incrementar o contador para aumentar a variavel no inicio do loop
-			#pegando o template cumulativo
-	if (cumulative):
-		template = getCumulativeTemplate(zFeat,frame,template) #TODO:> verifcar a condidional para a utilizacao do template  acumulativo
-	#filtro adaptativo
-	if (adaptative):
-		template = filtroAdaptativo(template,zFeat,spatial_cont)
-
-	return template
-
 
 
 '''----------------------------------------main-----------------------------------------------------'''
-def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
-
+def main(_):
+	
+	print('run tracker...')
 	opts = configParams()
 	opts = getOpts(opts)
 	#add
-	caminhoDataset = caminho_do_dataset
-	caminhoVideo = os.path.join(caminhoDataset,nome_do_video)
-	caminhoLog =  os.path.join(caminhoVideo,'__log__')
-	nome_log = nome_do_arquivo_de_saida
-	mi = float(parametro)
-
-	#REDE 1
+	minimumSiameseNetPlaceHolder = tf.placeholder(tf.float32, [1, opts['minimumSize'], opts['minimumSize'], 3])
 	exemplarOp = tf.placeholder(tf.float32, [1, opts['exemplarSize'], opts['exemplarSize'], 3])
 	instanceOp = tf.placeholder(tf.float32, [opts['numScale'], opts['instanceSize'], opts['instanceSize'], 3])
 	exemplarOpBak = tf.placeholder(tf.float32, [opts['trainBatchSize'], opts['exemplarSize'], opts['exemplarSize'], 3])
@@ -767,32 +985,18 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	sn = SiameseNet()
 	scoreOpBak = sn.buildTrainNetwork(exemplarOpBak, instanceOpBak, opts, isTraining=False)
 	saver = tf.train.Saver()
-	#writer = tf.summary.FileWriter(opts['summaryFile'])
+	writer = tf.summary.FileWriter(opts['summaryFile'])
 	sess = tf.Session()
-	sess2 = tf.Session()
 	saver.restore(sess, opts['modelName'])
-	saver.restore(sess2, opts['modelName'])
 	zFeatOp = sn.buildExemplarSubNetwork(exemplarOp, opts, isTrainingOp)
-
-	#REDE2
-	exemplarOp2 = tf.placeholder(tf.float32, [1, opts['exemplarSize'], opts['exemplarSize'], 3])
-	instanceOp2 = tf.placeholder(tf.float32, [opts['numScale'], opts['instanceSize'], opts['instanceSize'], 3])
-	exemplarOpBak2 = tf.placeholder(tf.float32, [opts['trainBatchSize'], opts['exemplarSize'], opts['exemplarSize'], 3])
-	instanceOpBak2 = tf.placeholder(tf.float32, [opts['trainBatchSize'], opts['instanceSize'], opts['instanceSize'], 3])
-	isTrainingOp2 = tf.convert_to_tensor(False, dtype='bool', name='is_training')
-	sn2 = SiameseNet()
-	#	scoreOpBak2 = sn2.buildTrainNetwork(exemplarOpBak2, instanceOpBak2, opts, isTraining=False)
-	saver2 = tf.train.Saver()
-	#writer2 = tf.summary.FileWriter(opts['summaryFile'])
-	sess2 = tf.Session()
-	saver2.restore(sess2, opts['modelName'])
-	zFeatOp2 = sn2.buildExemplarSubNetwork(exemplarOp2, opts, isTrainingOp2)
-
-	imgs, targetPosition, targetSize = loadVideoInfo(  caminhoDataset, nome_do_video )
+	zMinimumPreTrained =sn.buildExemplarSubNetwork(minimumSiameseNetPlaceHolder,opts,isTrainingOp)
+	generated = Generation(opts,sn)
+	#generated.getDescriptor(coordenadasDaImagem,Image.open('download.jpeg'))
+	imgs, targetPosition, targetSize = loadVideoInfo(opts['seq_base_path'], opts['video'])
 	nImgs = len(imgs)
 	imgs_pil =  [Image.fromarray(np.uint8(img)) for img in imgs]
 
-
+		
 	im = imgs[POSICAO_PRIMEIRO_FRAME]
 	if(im.shape[-1] == 1):
 		tmp = np.zeros([im.shape[0], im.shape[1], 3], dtype=np.float32)
@@ -806,7 +1010,6 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	scalez = opts['exemplarSize']/sz
 
 	zCrop, _ = getSubWinTracking(im, targetPosition, (opts['exemplarSize'], opts['exemplarSize']), (np.around(sz), np.around(sz)), avgChans)
-	zCrop2, _ = getSubWinTracking(im, targetPosition, (opts['exemplarSize'], opts['exemplarSize']), (np.around(sz), np.around(sz)), avgChans)
 
 	if opts['subMean']:
 		pass
@@ -814,6 +1017,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	dSearch = (opts['instanceSize']-opts['exemplarSize'])/2
 	pad = dSearch/scalez
 	sx = sz+2*pad
+
 	minSx = 0.2*sx
 	maxSx = 5.0*sx
 	winSz = opts['scoreSize']*opts['responseUp']
@@ -826,79 +1030,87 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 
 	window = window/np.sum(window)
 	scales = np.array([opts['scaleStep'] ** i for i in range(int(np.ceil(opts['numScale']/2.0)-opts['numScale']), int(np.floor(opts['numScale']/2.0)+1))])
-
-	#REDE1
+	zCrop2 = np.array(zCrop)
 	zCrop = np.expand_dims(zCrop, axis=0)
+	zCropMinimum = Image.fromarray(zCrop2,'RGB')
+	zCropMinimum = zCropMinimum.resize([ATOMIC_SIZE,ATOMIC_SIZE])
+	zCropMinimum = np.array(zCropMinimum)
+	zCropMinimum = np.expand_dims(zCropMinimum, axis=0)
 	zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
+	zMinimumFeatures = sess.run(zMinimumPreTrained, feed_dict={minimumSiameseNetPlaceHolder: zCropMinimum})
+	zMinimumFeatures = np.reshape(zMinimumFeatures,[DIM_DESCRIPTOR,ONE_DIMENSION])
 	zFeat = np.transpose(zFeat, [1, 2, 3, 0])
-	template = tf.constant(zFeat, dtype=tf.float32)
-	scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
-	#writer.add_graph(sess.graph)
-
-	#REDE2
-	zCrop_original = np.array(zCrop)
-	zFeat_original = sess2.run(zFeatOp2, feed_dict={exemplarOp2: zCrop_original})
-	zFeat_original = np.transpose(zFeat_original, [1, 2, 3, 0])
-	template_original = tf.constant(zFeat_original, dtype=tf.float32)
-	template = np.array(template_original)
-	template_acumulado = np.array(template)
-	scoreOp_original = sn.buildInferenceNetwork(instanceOp, template_original, opts, isTrainingOp)
-	#writer2.add_graph(sess2.graph)
-
+	zFeatConstantOp = tf.constant(zFeat, dtype=tf.float32)
+	scoreOp = sn.buildInferenceNetwork(instanceOp, zFeatConstantOp, opts, isTrainingOp)
+	writer.add_graph(sess.graph)
+	resPath = os.path.join(opts['seq_base_path'], opts['video'], 'res')
+	bBoxes = np.zeros([nImgs, 4])
 	tic = time.time()
-	ltrb = []
+	#nao faca isso em casa
+	
 
 
-	superDescritor = SuperTemplate()
-	superDescritor.addInstance(zFeat)
+	'''
+	
+	#[320,180,280,260], trump1
+	#[320,200,230,260], trump2
+
+
+	trump1 = Image.open('trump2.jpg')
+	trump2 = Image.open('trump1.jpg')
+	trump1Descr = generated.getDescriptor([320,180,280,260], trump1) #[240,320,480,640]
+	trump2Descr = generated.getDescriptor([320,180,280,260], trump2) # [320,240,640,480]
+	print('Descritor trump1: ',trump1Descr)
+	print('Descritor trump2: ',trump2Descr)
+	print('trump1 - trump2: ', detSimilarity(trump1Descr,trump2Descr))
+	#print((trump1Descr[0][0][0][0]))
+	#print((trump2Descr[0][0][0][0]))
+	print('convertSimilatiry: ', convertSimilatiry(detSimilarity(trump1Descr, trump2Descr)))
+	
+	trump1 = Image.open('trump1.jpg')
+	trump2 = Image.open('car.jpg')
+	trump1Descr = generated.getDescriptor([320,180,280,260], trump1) #[240,320,480,640]
+	trump2Descr = generated.getDescriptor([320,180,280,260], trump2) # [320,240,640,480]
+	print('Descritor trump1: ',trump1Descr)
+	print('Descritor trump2: ',trump2Descr)
+	print('trump1 - trump2: ', detSimilarity(trump1Descr,trump2Descr))
+	print((trump1Descr[0][0][0][0]))
+	print((trump2Descr[0][0][0][0]))
+	print('convertSimilatiry: ', convertSimilatiry(detSimilarity(trump1Descr, trump2Descr)))
+	teste = input('cancele isso por favor ')
+
+
+
+
+	#~nao faca isso em casa
+	'''
+
+	'''
+	Criando exibicao de object Model no opencv
+	'''
+	imagemPosvModel =  np.zeros((TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM , TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM, RGB) , dtype=np.uint8)
+	imagemNegvModel =  np.zeros((TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM , TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM, RGB) , dtype=np.uint8)
+
+
+
+	visualizadorPositivo = Visualization(10, 50 , 'Visualizador Positivo', imgs)
+	visualizadorNegativo = Visualization(10, 50 , 'Visualizador Negativo', imgs)
+	#, size_subWindow,title, listFrames
 
 	for frame in range(POSICAO_PRIMEIRO_FRAME, nImgs):
-
-		im = imgs[frame]
-
-		print(('frame ' + str(frame+1)).center(80,'*'))
+		print('')
+		print(('Estamos no frame ' + str(frame+1)).center(80,'*'))
+		bbTLD = [0,0,1,1]
 		if frame > POSICAO_PRIMEIRO_FRAME:
-
-			zCrop, _ = getSubWinTracking(im, targetPosition, (opts['exemplarSize'], opts['exemplarSize']), (np.around(sz), np.around(sz)), avgChans)
-			zCrop = np.expand_dims(zCrop, axis=0)
-			zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
-			zFeat = np.transpose(zFeat, [1, 2, 3, 0])
-			zFeat.reshape(1,NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR,SIAMESE_DESCRIPTOR_DIMENSION)
-
-			superDescritor.addInstance(zFeat)
-			
-			#template = tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template*(frame/(frame+1))
-			
-			if(im.shape[-1] == 1): # se a imagem for em escala de cinza
+			im = imgs[frame]
+			if(im.shape[-1] == 1):
 				tmp = np.zeros([im.shape[0], im.shape[1], 3], dtype=np.float32)
 				tmp[:, :, 0] = tmp[:, :, 1] = tmp[:, :, 2] = np.squeeze(im)
 				im = tmp
 			scaledInstance = sx * scales
 			scaledTarget = np.array([targetSize * scale for scale in scales])
 			xCrops = makeScalePyramid(im, targetPosition, scaledInstance, opts['instanceSize'], avgChans, None, opts)
-
-			'''
-			template  = getCumulativeTemplate(zFeat,frame,template)
-			if frame < FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
-				template = template_original
-			'''
-			
-			#template_espacial = spatialTemplate (targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False )
-			#template = superDescritor.cummulativeTemplate()
-			#template = superDescritor.progressiveTemplate()
-			#template = superDescritor.nShotTemplate(3)
-			template = superDescritor.innovativeTemplate(3)
-			if frame < 2:
-				template = template_original
-
-			print("shape de template antes de entrar na funcao do filtro adaptativo: ",template[0,1,:,0].shape )
-			
-			#filtro adaptativo logo abaixo:
-			#template = filtroAdaptativo(template,zFeat,mi)
-			#~filtro adaptativo
-			
-			
-			scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
+			# sio.savemat('pyra.mat', {'xCrops': xCrops})
 			score = sess.run(scoreOp, feed_dict={instanceOp: xCrops})
 			sio.savemat('score.mat', {'score': score})
 			newTargetPosition, newScale = trackerEval(score, round(sx), targetPosition, window, opts)
@@ -906,38 +1118,48 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			sx = max(minSx, min(maxSx, (1-opts['scaleLr'])*sx+opts['scaleLr']*scaledInstance[newScale]))
 			targetSize = (1-opts['scaleLr'])*targetSize+opts['scaleLr']*scaledTarget[newScale]
 
-		else:
-			pass
+			TLD_parte_1(generated, imgs_pil, frame+1) #Nao tem o frame 0, comeca no 1
+			bbTLD = TLD_parte_2(generated, imgs_pil, frame+1)
+			print('negative obj model length: ', len(generalDescriptor.negative_obj_model_bb))
+			print('positive obj model length: ', len(generalDescriptor.positive_obj_model_bb))
+			visualizadorPositivo.refreshObjectModel(generalDescriptor.positive_obj_model_bb)
+			visualizadorNegativo.refreshObjectModel(generalDescriptor.negative_obj_model_bb)
 
+		else:
+			init_TLD_in_siameseFC(generated, imgs_pil, frame+1)
+			#pass
 		rectPosition = targetPosition-targetSize/2.
 		tl = tuple(np.round(rectPosition).astype(int)[::-1])
 		br = tuple(np.round(rectPosition+targetSize).astype(int)[::-1])
-		if not IN_A_SERVER: # plot only if it is in a desktop that allows you to watch the video
-			imDraw = im.astype(np.uint8)
-			cv2.rectangle(imDraw, tl, br, (0, 255, 255), thickness=3)
-			cv2.imshow("tracking - siamese", imDraw)
-			cv2.waitKey(1)
-		ltrb.append(list(tl) + list(br))
-	with open( os.path.join(caminhoLog, nome_log ),'w') as file:
-		linhas = []
-		for i in ltrb:
-			linha = ''
-			for cont,coord in enumerate(i) :
-				if cont == 3:
-					linha = linha + str(coord) + '\n'
-				else:
-					linha = linha + str(coord) + ','
-			linhas.append(linha)
-		for i in linhas:
-			file.write(i)
+		imDraw = im.astype(np.uint8)
+		cv2.rectangle(imDraw, tl, br, (0, 255, 255), thickness=3)
+		try:
+			cv2.rectangle(imDraw,tuple([round(i) for i in bbTLD[:2]] ), tuple([round(i) for i in bbTLD[2:]] ),(255,255,0), thickness=2)
+		except: 
+			cv2.circle(imDraw,(30,30), 6,(0,50,255), 7)
+		cv2.imshow("tracking - siamese", imDraw)
+
+		cv2.waitKey(1)
+
+
+
+		
+		generalDescriptor.positive_obj_model_bb
 	print(time.time()-tic)
+
+	
 	return
 
-if __name__=='__main__':
+def addModel(generated, bb_list, bb_acumulated_atribute, feature_acumulated_atribute, image):
+	is_empty = True
+	for cont,bb in enumerate(bb_list):
+		if(not (True in [math.isnan(item) for item in bb])):
+			is_empty = False
+			currentFeature = generated.getDescriptor(bb, image)
+			bb_acumulated_atribute.append(bb)
+			feature_acumulated_atribute.append(currentFeature)
+	
+	return is_empty
 
-	args = _get_Args()
-	video = args.video
-	nome_do_arquivo_de_saida = args.nome
-	caminho_do_dataset = args.caminho
-	parametro = args.parametro
-	_main(video,nome_do_arquivo_de_saida,caminho_do_dataset, parametro)
+if __name__=='__main__':
+	tf.app.run()
