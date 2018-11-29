@@ -4,18 +4,19 @@ import math
 import localParameters as lp
 
 
-NUM_THREAD = int(lp.getInJson('datasetRunner','threads'))
+NUM_THREAD 			= int(lp.getInJson('datasetRunner','threads'))
 LISTA_DE_PARAMETROS = lp.getInJson('datasetRunner','parametros')
-CAMINHO_VOT_2015 = str(lp.getInJson('sistema','datasetPath'))
-PATH_SCRIPT = str(lp.getInJson('tracker','trackerPath'))
-NOME_ARQUIVO_SAIDA = str(lp.getInJson('datasetRunner', 'nome_saida'))
-BASH_PYTHON = str(lp.getInJson('sistema','python'))
-
+CAMINHO_VOT_2015 	= str(lp.getInJson('tracker','datasetPath'))
+PATH_SCRIPT 		= str(lp.getInJson('tracker','trackerPath'))
+NOME_ARQUIVO_SAIDA 	= str(lp.getInJson('process', 'nome_saida'))
+BASH_PYTHON 		= str(lp.getInJson('sistema','python'))
+LOG_FOLDER 			= lp.getInJson('tracker','log_folder')
 def get_list_videos(parametro):
 	listVideos = []
+	print(NOME_ARQUIVO_SAIDA)
 	for i in os.listdir(CAMINHO_VOT_2015):
 		if(not i.startswith('_')) and (os.path.isdir(os.path.join(CAMINHO_VOT_2015,i))):
-			if(not ((NOME_ARQUIVO_SAIDA+str(parametro)) in os.listdir(os.path.join(CAMINHO_VOT_2015,i,'__log__')))):
+			if(not ((NOME_ARQUIVO_SAIDA+str(parametro)) in os.listdir(os.path.join(CAMINHO_VOT_2015,i,LOG_FOLDER)))):
 				listVideos.append(i)
 	listVideos.sort()
 	return listVideos
@@ -42,11 +43,14 @@ def runner(id, list_video, parametro):
 	list_video_finished = [False] * len(list_video)
 
 	for videoName in list_video:
+		nomeCompleto = NOME_ARQUIVO_SAIDA + str(parametro) # identifica o parametro que foi executado cada um dos arquivo como um sufixo
 		try:
-			os.mkdir(os.path.join(CAMINHO_VOT_2015,videoName,'__log__'))
-			os.system(BASH_PYTHON + ' '  + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' ' + CAMINHO_VOT_2015 + ' ' + str(parametro))
+			os.mkdir(os.path.join(CAMINHO_VOT_2015,videoName,LOG_FOLDER))
 		except:
-			os.system(BASH_PYTHON +' ' + PATH_SCRIPT + ' ' + videoName + ' ' + NOME_ARQUIVO_SAIDA + str(parametro) + ' '  + CAMINHO_VOT_2015 + ' ' +str(parametro))
+			pass
+		finally:
+			os.system(' '.join([BASH_PYTHON, PATH_SCRIPT,"-v", videoName,"-n", nomeCompleto, "-c", CAMINHO_VOT_2015, "-p",str(parametro)]))
+
 
 def main():
 
@@ -67,14 +71,6 @@ def main():
 
 		for p in list_process:
 			p.join()
-
-def _get_Args():
-	parser = argparse.ArgumentParser()
-	parser.add_argument('video', help= 'nome da pasta do video')
-	parser.add_argument('nome', help = 'nome do arquivo de saida')
-	parser.add_argument('caminho', help ='caminho ABSOLUTO para o dataset')
-	parser.add_argument('parametro', help = 'parametro a ser setado para esse tracker')
-	return parser.parse_args()
 
 
 if __name__ == '__main__':

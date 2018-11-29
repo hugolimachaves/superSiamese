@@ -53,19 +53,18 @@ SIAMESE_DESCRIPTOR_DIMENSION = 256
 NUMBER_OF_EXEMPLAR_DESCRIPTOR = 6
 AMPLITUDE_DESLOCAMENTO = 0 # define a amplitude da realizacao da media de templantes no espaco - 0 == original
 FRAMES_COM_MEDIA_ESPACIAL = [POSICAO_PRIMEIRO_FRAME] # lista com o frames onde a media espacial sera realizada - [] ==  original
-MI = 0.01#0.1 # parametro do filtro adaptativo - 0 == original.
+
 
 tf.set_random_seed(1) #os.environ['PYTHONHASHSEED'] = '0' #rn.seed(12345) #np.random.seed(42)
 
-SHOW = lp.getInJson('tracker','show')
-CAMINHO_DATASET = lp.getInJson('sistema','datasetPath')
+
 
 def _get_Args():
 	parser = argparse.ArgumentParser()
-	parser.add_argument("video", help= "nome da pasta do video")
-	parser.add_argument("nome", help = "nome do arquivo de saida")
-	parser.add_argument("caminho", help ="caminho ABSOLUTO para o dataset")
-	parser.add_argument("parametro", help = "parametro a ser setado para esse tracker")
+	parser.add_argument("-v","--video"		,default=None, help = "nome da pasta do video")
+	parser.add_argument("-n","--nomeSaida"		,default=None, help = "nome do arquivo de saida")
+	parser.add_argument("-c","--caminho"	,default=None, help = "caminho ABSOLUTO para o dataset")
+	parser.add_argument("-p","--parametro"	,default=None, help = "parametro a ser setado para esse tracker")
 	return parser.parse_args()
 
 
@@ -358,6 +357,7 @@ def spatialTemplate(targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarO
 '''----------------------------------------main-----------------------------------------------------'''
 def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 
+	show = lp.getInJson('tracker','show')
 	opts = configParams()
 	opts = getOpts(opts)
 	#add
@@ -527,7 +527,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 		rectPosition = targetPosition-targetSize/2.
 		tl = tuple(np.round(rectPosition).astype(int)[::-1])
 		br = tuple(np.round(rectPosition+targetSize).astype(int)[::-1])
-		if SHOW: # plot only if it is in a desktop that allows you to watch the video
+		if show: # plot only if it is in a desktop that allows you to watch the video
 			imDraw = im.astype(np.uint8)
 			cv2.putText(imDraw,str(frame+1)+'/'+str(nImgs),(0,25),cv2.FONT_HERSHEY_DUPLEX,1,(0,255,255),2)
 			cv2.rectangle(imDraw, tl, br, (0, 255, 255), thickness=3)
@@ -551,10 +551,9 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	return
 
 if __name__== '__main__':
-
+	
 	args = _get_Args()
-	video = args.video
-	nome_do_arquivo_de_saida = args.nome
-	caminho_do_dataset = args.caminho
-	parametro = args.parametro
-	_main(video,nome_do_arquivo_de_saida,caminho_do_dataset, parametro)
+	listCustom = [args.video,args.nomeSaida,args.caminho,args.parametro]
+	listDefault = [lp.getInJson('process','video_teste'), lp.getInJson('process','nome_saida'), lp.getInJson('tracker','datasetPath'), lp.getInJson('process','parametro')]
+	listaArgs = [argumentoDefault if argumentoCustom == None else argumentoCustom  for argumentoCustom, argumentoDefault in zip(listCustom,listDefault)] # colcoar argumentos default caso nao sejam passados argumentos costumizaveis
+	_main(listaArgs[0],listaArgs[1],listaArgs[2],listaArgs[3])

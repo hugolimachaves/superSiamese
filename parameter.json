@@ -1,9 +1,11 @@
 [
-	{"datasetRunner":
+	
+	{	
+		"datasetRunner":
 		{
+			"comentario": "Arquivo com os parametros necessarios para execucao do script de tracker para um dataset",
 			"threads": 3,
-			"parametros": [3,5,10,15,20,30,40],
-			"nome_saida": "nShot_"
+			"parametros": [3,5,10,15,20,30,40]	
 		}
 	}
 	,
@@ -13,16 +15,26 @@
 			"python": "python",
 			"SO":"linux",
 			"computador":"hc",
-			"nickname": "hugo pessoal",
-			"datasetPath": "/home/hugo/Documents/Mestrado/vot2015"
+			"nickname": "hugo pessoal"
+			
 		},
+
 	"tracker":
 		{
 			"trackerPath": "/home/hugo/Documents/Mestrado/neoSiamese/tracker.py",
+			"datasetPath": "/home/hugo/Documents/Mestrado/vot2015",
 			"groundTruthFile": "groundtruth.txt",
-			"show" : false
-		}
+			"show" : false,
+			"single" : true,
+			"log_folder" : "__log__" 
+		},
 
+	"process":
+		{
+			"video_teste" : "bag",
+			"nome_saida": "nShot_",
+			"parametro":  3
+		}
 	}
 	,
 
@@ -31,16 +43,17 @@
 			"python": "python",
 			"SO":"windows",
 			"computador":"DESKTOP-668IF5K",
-			"nickname": "dijkstra",
-			"datasetPath": "C:\\Users\\hugol\\Documents\\vot2015"
+			"nickname": "dijkstra"
 		},
 	"tracker":
 		{
 			"trackerPath": "C:\\Users\\hugol\\Documents\\superSiamese\\tracker.py",
+			"datasetPath": "C:\\Users\\hugol\\Documents\\vot2015",
 			"groundTruthFile": "groundtruth.txt",
-			"show" : false
+			"show" : false,
+			"single" : false,
+			"log_folder" : "__log__"
 		}
-
 	}
 	,
 
@@ -49,16 +62,18 @@
 			"python": "python3.5",
 			"SO":"linux",
 			"computador":"schrodinger",
-			"nickname" : "xodinha",
-			"datasetPath": "/home/schrodinger/sdc/hugo/vot2015"
+			"nickname" : "xodinha"
+			
 		},
 	"tracker":
 		{
 			"trackerPath": "/home/schrodinger/sdc/hugo/superSiamese/tracker.py",
+			"datasetPath": "/home/schrodinger/sdc/hugo/vot2015",
 			"groundTruthFile": "groundtruth.txt",
-			"show" : false
+			"show" : false,
+			"single" : false,
+			"log_folder" : "__log__"
 		}
-
 	}
 	,
 
@@ -67,14 +82,17 @@
 			"python": "python3.6",
 			"SO":"linux",
 			"computador":"laplace",
-			"nickname" : "keeeeeeeeeeeeeeeeeeeeeevyn",
-			"datasetPath": "/home/swhants/Documentos/vot2015"
+			"nickname" : "keeeeeeeeeeeeeeeeeeeeeevyn"
 		},
 	"tracker":
 		{
 			"trackerPath": "/home/swhants/Documentos/superSiamese-master/tracker.py",
+			"datasetPath": "/home/swhants/Documentos/vot2015",
 			"groundTruthFile": "groundtruth.txt",
-			"show" : false
+			"show" : false,
+			"single" : false,
+			"log_folder" : "__log__"
+
 		}
 
 	}

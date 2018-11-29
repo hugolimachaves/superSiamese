@@ -8,7 +8,6 @@ CAMINHO_VOT_2015 = lp.getInJson('sistema','datasetPath')
 PATH_SCRIPT = lp.getInJson('tracker','trackerPath')
 NOME_ARQUIVO_SAIDA = lp.getInJson('datasetRunner', 'nome_saida')
 
-print(NOME_ARQUIVO_SAIDA)
 
 '''
 j = lp.getInJson("sistema","datasetPath")

@@ -4,6 +4,7 @@ import tensorflow as tf
 from parameters import configParams
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.training import moving_averages
+import time
 
 MOVING_AVERAGE_DECAY = 0.9997        #only siamese-net in matlab uses 0 here, other projects with tensorflow all use 0.999 here, from some more documents, I think 0.999 is more probable here, since tensorflow uses a equation as 1-decay for this parameter
 UPDATE_OPS_COLLECTION = 'sf_update_ops'
@@ -25,6 +26,7 @@ class SiameseNet:
 
         with tf.variable_scope('siamese') as scope:
             scope.reuse_variables()
+            
             score = self.buildBranch(instance, opts, isTrainingOp, branchType=branchType)
 
         with tf.variable_scope('score'):
@@ -241,16 +243,22 @@ class SiameseNet:
             movingMean = self.getVariable('moving_mean', paramsShape, initializer=tf.constant_initializer(value=0, dtype=tf.float32), trainable=False)
             movingVariance = self.getVariable('moving_variance', paramsShape, initializer=tf.constant_initializer(value=1, dtype=tf.float32), trainable=False)
 
+        print('*****************************', type(movingMean))
         mean, variance = tf.nn.moments(x, axis)
+        
+ 
         updateMovingMean = moving_averages.assign_moving_average(movingMean, mean, MOVING_AVERAGE_DECAY)
         updateMovingVariance = moving_averages.assign_moving_average(movingVariance, variance, MOVING_AVERAGE_DECAY)
+ 
         tf.add_to_collection(UPDATE_OPS_COLLECTION, updateMovingMean)
         tf.add_to_collection(UPDATE_OPS_COLLECTION, updateMovingVariance)
 
         mean, variance = control_flow_ops.cond(isTraining, lambda : (mean, variance), lambda : (movingMean, movingVariance))
-
+        
         x = tf.nn.batch_normalization(x, mean, variance, beta, gamma, variance_epsilon=0.001)
-
+        
+        del updateMovingVariance, updateMovingMean, movingVariance, movingMean
+        print(locals())
         return x
 
     # def batchNormalization(self, inputs, isTraining, name):
@@ -281,7 +289,7 @@ class SiameseNet:
 
         return loss
 
-    def getVariable(self, name, shape, initializer, weightDecay = 0.0, dType=tf.float32, trainable = True):
+    def getVariable(self, name, shape, initializer, weightDecay = 0.0, dType=tf.float32, trainable = False):
         if weightDecay > 0:
             regularizer = tf.contrib.layers.l2_regularizer(weightDecay)
         else:
