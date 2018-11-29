@@ -1,54 +1,81 @@
 [
-	
-		{"sistema":
-			{
-				"SO":"linux",
-				"computador":"hc",
-				"nickname": "hugo pessoal",
-				"datasetPath": "/home/hugo/Documents/Mestrado/vot2015"
-			},
-		"tracker":
-			{
-				"trackerPath": "/home/hugo/Documents/Mestrado/neoSiamese",
-				"groundTruthFile": "groundtruth.txt",
-				"show" : false
-			}
-
+	{"datasetRunner":
+		{
+			"threads": 3,
+			"parametros": [3,5,10,15,20,30,40],
+			"nome_saida": "nShot_"
 		}
+	}
 	,
 
-		{"sistema":
-			{
-				"SO":"windows",
-				"computador":"DESKTOP-668IF5K",
-				"nickname": "dijkstra",
-				"datasetPath": "C:\\Users\\hugol\\Documents\\vot2015"
-			},
-		"tracker":
-			{
-				"trackerPath": "C:\\Users\\hugol\\Documents\\superSiamese",
-				"groundTruthFile": "groundtruth.txt",
-				"show" : false
-			}
-
+	{"sistema":
+		{
+			"python": "python",
+			"SO":"linux",
+			"computador":"hc",
+			"nickname": "hugo pessoal",
+			"datasetPath": "/home/hugo/Documents/Mestrado/vot2015"
+		},
+	"tracker":
+		{
+			"trackerPath": "/home/hugo/Documents/Mestrado/neoSiamese/tracker.py",
+			"groundTruthFile": "groundtruth.txt",
+			"show" : false
 		}
+
+	}
 	,
 
-		{"sistema":
-			{
-				"SO":"linux",
-				"computador":"schrodinger",
-				"nickname" : "xodinha",
-				"datasetPath": "/home/schrodinger/sdc/hugo/vot2015"
-			},
-		"tracker":
-			{
-				"trackerPath": "/home/schrodinger/sdc/hugo/superSiamese",
-				"groundTruthFile": "groundtruth.txt",
-				"show" : false
-			}
-
+	{"sistema":
+		{
+			"python": "python",
+			"SO":"windows",
+			"computador":"DESKTOP-668IF5K",
+			"nickname": "dijkstra",
+			"datasetPath": "C:\\Users\\hugol\\Documents\\vot2015"
+		},
+	"tracker":
+		{
+			"trackerPath": "C:\\Users\\hugol\\Documents\\superSiamese\\tracker.py",
+			"groundTruthFile": "groundtruth.txt",
+			"show" : false
 		}
-	
 
+	}
+	,
+
+	{"sistema":
+		{
+			"python": "python3.5",
+			"SO":"linux",
+			"computador":"schrodinger",
+			"nickname" : "xodinha",
+			"datasetPath": "/home/schrodinger/sdc/hugo/vot2015"
+		},
+	"tracker":
+		{
+			"trackerPath": "/home/schrodinger/sdc/hugo/superSiamese/tracker.py",
+			"groundTruthFile": "groundtruth.txt",
+			"show" : false
+		}
+
+	}
+	,
+
+	{"sistema":
+		{
+			"python": "python3.6",
+			"SO":"linux",
+			"computador":"laplace",
+			"nickname" : "keeeeeeeeeeeeeeeeeeeeeevyn",
+			"datasetPath": "/home/swhants/Documentos/vot2015"
+		},
+	"tracker":
+		{
+			"trackerPath": "/home/swhants/Documentos/superSiamese-master/tracker.py",
+			"groundTruthFile": "groundtruth.txt",
+			"show" : false
+		}
+
+	}
 ]

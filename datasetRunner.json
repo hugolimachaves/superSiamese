@@ -1,0 +1,9 @@
+[
+	{"datasetRunner":
+		{
+			"threads": 3,
+			"parametros":[3,5,10,15,20,30,40],
+			"nome_saida":["nShot_"]
+		}
+	}
+]

@@ -1,4 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # Suofei ZHANG, 2017.
+
+
 import os
 import math
 import tensorflow as tf
@@ -18,8 +22,6 @@ import argparse
 import json
 import socket
 import localParameters as lp
-
-
 
 DEBUG_TRACKER = False
 DEBUG_PRINT_ARRAY = False
@@ -45,10 +47,7 @@ K = 0.01#0.04
 MAX_OBJECT_MODEL_ONE_DIM = 10
 OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM = 50
 TOTAL_PIXEL_DISPLAY_OBJECT_MODEL_ONE_DIM = MAX_OBJECT_MODEL_ONE_DIM * OBJECT_MODEL_DISPLAY_SIZE_ONE_DIM
-
 FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK = 5 # infinito ==  original
-
-IN_A_SERVER = False
 SIAMESE_STRIDE = 8
 SIAMESE_DESCRIPTOR_DIMENSION = 256
 NUMBER_OF_EXEMPLAR_DESCRIPTOR = 6
@@ -58,7 +57,7 @@ MI = 0.01#0.1 # parametro do filtro adaptativo - 0 == original.
 
 tf.set_random_seed(1) #os.environ['PYTHONHASHSEED'] = '0' #rn.seed(12345) #np.random.seed(42)
 
-
+SHOW = lp.getInJson('tracker','show')
 CAMINHO_DATASET = lp.getInJson('sistema','datasetPath')
 
 def _get_Args():
@@ -102,398 +101,6 @@ class SuperTemplate:
 		self.templateList.append(template)
 
 
-
-class Generation:
-
-	def __init__(self,opts,siamiseNetWorkLocal):
-		self.minimumSiameseNetPlaceHolder = tf.placeholder(tf.float32, [ONE_DIMENSION, opts['minimumSize'], opts['minimumSize'], RGB])
-		tf.convert_to_tensor(False, dtype='bool', name='is_training')
-		isTrainingOp = tf.convert_to_tensor(False, dtype='bool', name='is_training')
-		self.zMinimumPreTrained =siamiseNetWorkLocal.buildExemplarSubNetwork(self.minimumSiameseNetPlaceHolder,opts,isTrainingOp)
-		self.tensorFlowSession = tf.Session()
-		tf.initialize_all_variables().run(session=self.tensorFlowSession)
-
-
-	def  extend(self,bb,margin):
-		bb_aux = []
-		bb_aux.append(round(bb[0] - bb[2]/2 - abs((bb[2]))*margin))
-		bb_aux.append(round(bb[1] - bb[3]/2 - abs((bb[3]))*margin))
-		bb_aux.append(round(bb[2] + bb[2]/2 + abs((bb[2]))*margin))
-		bb_aux.append(round(bb[3] + bb[3]/2 + abs((bb[3]))*margin))
-		return bb_aux
-
-
-	#passando Bounding Box no formato Y,X,W,H, retornando left, top, right, botton
-	def get_image_cropped(self, img, bb): # imagemCurrentFrame PIL
-		left	= round(bb[0] - (bb[2]/2))
-		top	    = round(bb[1] - (bb[3]/2))
-		right   = round(bb[2] + left)
-		bottom  = round(bb[3] + top)
-
-		cropped = img.crop([left,top,right,bottom])
-
-		return cropped
-
-	def convertYXWH2LTRB(self,yxwh):
-
-		ltrb =[]
-		ltrb.append(yxwh[0] - round(yxwh[3]/2) )
-		ltrb.append(yxwh[1] - round(yxwh[2]/2) )
-		ltrb.append(yxwh[0] + round(yxwh[3]/2) )
-		ltrb.append(yxwh[1] + round(yxwh[2]/2) )
-		return ltrb
-
-	def get_image_cropped2(self, img, bb, margem):
-
-		bb = self.convertYXWH2LTRB(bb[:4])
-
-
-		bb = self.extend(bb,margem)
-
-		img_np = np.array(img)
-
-		mean_color = [np.mean(img_np[:,:,0]), np.mean(img_np[:,:,1]), np.mean(img_np[:,:,2])]
-		shape_original = img_np.shape[:2]
-		boundary = [0, 0, img_np.shape[1] , img_np.shape[0]]
-		margin = []
-
-		for i in range(len(boundary)):
-			if(i < 2):
-				margin.append(min(bb[i] - boundary[i], 0))
-			else:
-				margin.append(min(boundary[i] - bb[i], 0))
-
-		img_cropped = img.crop(bb)
-		img_np = np.array(img_cropped)
-
-		for i in range(RGB):
-
-			if(margin[0] is not 0):
-				img_np[0:-margin[0], :, i] = mean_color[i]
-			if(margin[1] is not 0):
-				img_np[:, 0:-margin[1], i] = mean_color[i]
-			if(margin[2] is not 0):
-				img_np[img_np.shape[0]+margin[3]:img_np.shape[0], :, i] = mean_color[i]
-			if(margin[3] is not 0):
-				img_np[:, img_np.shape[1]+margin[2]:img_np.shape[1], i] = mean_color[i]
-
-		img_cropped = Image.fromarray(img_np)
-
-		return img_cropped
-
-	'''
-	def get_image_cropped_ltrb(self, img, bb): # imagemCurrentFrame PIL
-		left	= round(bb[0] - (bb[2]/2))
-		top	    = round(bb[1] - (bb[3])/2)
-		right   = round(bb[2] + left)
-		bottom  = round(bb[3] + top)
-
-		cropped = img.crop([left,top,right,bottom])
-		return cropped
-	'''
-
-	def getDescriptor(self,bb,imageSource): # zMinimumFeatures = sess.run(zMinimumPreTrained, feed_dict={minimumSiameseNetPlaceHolder: zCropMinimum})
-		imImageSource = self.get_image_cropped2(imageSource,bb, 0.35) ##MARGEM
-		#imImageSource.show()
-		#imageSource.show()
-		#input('iaperta alguma coisa')
-		neoImageSource = imImageSource.resize((ATOMIC_SIZE,ATOMIC_SIZE))
-		npImageSource = np.array(neoImageSource)
-		npImageSource = npImageSource.reshape(1,npImageSource.shape[0],npImageSource.shape[1],3)
-		zMinimumFeatures = self.tensorFlowSession.run(self.zMinimumPreTrained, feed_dict={self.minimumSiameseNetPlaceHolder: npImageSource})
-
-		return zMinimumFeatures
-
-class DeepDescription:
-	positive_obj_model_bb		 = []
-	negative_obj_model_bb 		 = []
-	good_windows_bb 	 		 = []
-	good_windows_hull_bb 		 = []
-	tracker_bb					 = []
-	__candidates_bb 			 = []
-
-	positive_obj_model_features  = []
-	negative_obj_model_features  = []
-	good_windows_features 		 = []
-	good_windows_hull_features   = []
-	tracker_features			 = []
-	__candidates_features 		 = []
-
-	#TODO Colocar privado
-	positive_distances_candidates  = []
-	negative_distances_candidates  = []
-	positive_similarity_candidates = []
-	negative_similarity_candidates = []
-
-	#TODO Colocar privado
-	positive_distances_tracker_candidate  = []
-	negative_distances_tracker_candidate  = []
-	positive_similarity_tracker_candidate = []
-	negative_similarity_tracker_candidate = []
-
-	__currentFrame = 0
-
-	def __init__(self):
-		self.__currentFrame = 0
-
-	def setCandidates(self,candBB,candFeat,currentFrame):
-		self.__currentFrame = currentFrame
-
-		self.__candidates_bb = []
-		self.__candidates_bb = candBB
-
-		self.__candidates_features = []
-		self.__candidates_features = candFeat
-
-	def getCandidates(self,currentFrame):
-		if (currentFrame is self.__currentFrame):
-			return self.__candidates_bb, self.__candidates_features
-
-		self.__currentFrame = currentFrame
-		return [], []
-
-class Visualization:
-
-
-	def __init__(self, n_subWindows, size_subWindow,title, listFrames):
-
-		self._n_subwindows_per_dimension = n_subWindows
-		self._size_subwindow_per_dimension =  size_subWindow
-		self._n_pixels_display_one_dim = self._n_subwindows_per_dimension* self._size_subwindow_per_dimension
-		self._number_models = 0
-		self._imagemModels =  np.zeros((self._n_pixels_display_one_dim , self._n_pixels_display_one_dim, RGB ), dtype=np.uint8)
-		self._titulo = title
-		self._listFrames = listFrames
-
-	def convertYXWH2LTRB(self,yxwh):
-
-		ltrb =[]
-		ltrb.append(yxwh[0] - round(yxwh[3]/2) )
-		ltrb.append(yxwh[1] - round(yxwh[2]/2) )
-		ltrb.append(yxwh[0] + round(yxwh[3]/2) )
-		ltrb.append(yxwh[1] + round(yxwh[2]/2) )
-		return ltrb
-
-	'''
-	def addObjectModelVisualization(objecModel,img,): # formato para opencv: ltrb
-
-		objectModel = list(objectModel)
-		if len(objectModeL== 5):
-			objectModel = objectModel(:-1)
-		objectModel =  =convertYXWH2LTRB(objectModel)
-	'''
-	def crop_image(self, img, bb, percentMargin = 0): # imagemCurrentFrame PIL
-		img_pil = Image.fromarray(np.uint8(img))
-		cropped = img_pil.crop(bb)
-		return cropped
-
-
-	def imshow(self):
-
-		cv2.imshow(self._titulo,self._imagemModels)
-
-
-	def destroyWindow(self):
-
-		try:
-			cv2.destroyWindow(self._titulo)
-		except:
-			print('ERRO: Nao foi possivel destruir a janela')
-
-	def _planarFromLinear(self,linear):
-		if linear == 0:
-			i = 0
-			j = 0
-		else: # verificar isso aqui
-
-			j = linear%self._n_subwindows_per_dimension
-			i = int(linear/self._n_subwindows_per_dimension)%self._n_subwindows_per_dimension
-
-			''' errado
-			linear = self._n_subwindows_per_dimension**2%linear
-			j = linear%self._n_subwindows_per_dimension
-			i = int(linear/self._n_subwindows_per_dimension)
-			'''
-		return i, j
-
-
-	def _get_frame_and_bb(self,BB_e_frame):
-
-		frameNumber = BB_e_frame.pop(-1)
-		return frameNumber, BB_e_frame
-
-
-	def _get_modelo_shrinked_image(self,BB,imagem): # retorna a imagem shrinked referente ao frame enviado
-
-		# 'imagem' com o shape okay, nao e (0,0,3)
-		bb_ltrb = self.convertYXWH2LTRB(BB)
-		image_cropped = self.crop_image(imagem,bb_ltrb) # entra np.array --> sai PIL image;
-		image_cropped =  np.array(image_cropped.getdata(),np.uint8).reshape(image_cropped.size[1],image_cropped.size[0],RGB)
-		# abaixo esta dando imagem com dimensoes 0,0,3
-		resized_image = cv2.resize(image_cropped,(self._size_subwindow_per_dimension,self._size_subwindow_per_dimension ),interpolation=cv2.INTER_CUBIC)
-		#cv2.imshow('imagem cv', resized_image)
-		return resized_image
-
-
-	def _adicionar_modelo_na_posicao(self,shrinked_image,i,j):
-
-		#atribuicao
-		if(DEBUG_3):
-			print('O shape da imagem na rotina para adicionar modelos e: ',shrinked_image.shape)
-			print('i inferior :', i, ' i superior :', i+1, 'j inferior: ', j , 'j superior: ', j+1)
-		self._imagemModels[i*self._size_subwindow_per_dimension:(i+1)*self._size_subwindow_per_dimension, j*self._size_subwindow_per_dimension:(j+1)*self._size_subwindow_per_dimension] = shrinked_image
-
-
-	def refreshObjectModel(self,objectModelList):
-
-		if len(objectModelList) == self._number_models:
-
-			pass
-
-		else:
-
-			for numero_do_modelo in range(self._number_models, len(objectModelList)):
-				#print('Entrando na atulaizacao de modelo')
-				numero_do_frame, BB = self._get_frame_and_bb(objectModelList[numero_do_modelo])
-				i,j = self._planarFromLinear(numero_do_modelo)
-				shrinked = self._get_modelo_shrinked_image(BB, self._listFrames[numero_do_frame-1]) # porque o frame comeca do numero 1 e nao do numero 0. 7
-				#cv2.imshow('teste',shrinked)
-				self._adicionar_modelo_na_posicao(shrinked,i,j)
-
-		# atualiza no numero o contador de modelos da classe
-		self._number_models = len(objectModelList)
-		self.imshow()
-
-'''
-imshow
-refreshModel
-
-'''
-
-
-
-generalDescriptor = DeepDescription()
-
-def convertSimilatiry(siameseDistance):
-	return np.exp(- K * siameseDistance) # retorna a distancia no TLD
-	#return 1.0 / (siameseDistance + 1.0) # retorna a distancia no TLD
-
-def getLength(element): # verifica o tamanho total de elementos em uma estrutura de dados de dimensoes arbitrarias
-	if isinstance(element, list):
-		return sum(([getLength(i) for i in element]))
-	return 1
-
-# passa  as deep Features dos candidatos para o presente frame conjuntamente
-# com o modelo positivo(default) ou negativo
-def distCandidatesToTheModel(deep_features_candidates, isPositive=True):
-	#Usa os seguintes parametros globais:  feature_pos_obj_model, feature_neg_obj_model  
-	features = []
-
-	if isPositive: # modelo positivo do object model
-		positiveLabel = [1 for i in feature_pos_obj_model]
-		labels = np.asarray(positiveLabel)
-		features = np.asarray(feature_pos_obj_model)
-
-	else: # modelo negativo do object model
-		negativeLabel = [0 for i in feature_neg_obj_model]
-		labels = np.asarray(negativeLabel)
-		features = np.asarray(feature_neg_obj_model)
-
-	distances = []
-	positions = []
-
-	if (features.size is not 0):
-		knn_1 = KNeighborsClassifier(n_neighbors=1)
-		listFeatures = [bb for frame in features for bb in frame]
-		knn_1.fit(listFeatures, labels)
-
-		for candidate in deep_features_candidates: # pega a menor distancia para cada candidato na lista deep_features_candidate
-			list_candidate = np.asarray(candidate)
-			dist,position = knn_1.kneighbors(list_candidate, n_neighbors=1, return_distance=True)
-			distances.append(dist[0][0])
-			positions.append(position)
-			# example: neigh.kneighbors([[1., 1., 1.]])
-			# pode das errado porque a documentacao mostra um array de array
-
-	return distances # retorna a menor distancia em relacao ao modelo, eh uma lista pois sao varios candidatos e tambem  a posicao no vetor
-
-# passo duas features e calcula a distancia euclidiana entre elas
-def detSimilarity(feature_a, feature_b):
-	dist = 0
-	if len(feature_a.shape) > 2:
-		feature_a = feature_a.reshape(-1)
-	if len(feature_b.shape) > 2:
-		feature_b = feature_b.reshape(-1)
-	for a, b in zip(feature_a, feature_b):
-		dist += (a - b) ** 2
-
-	'''
-	#Comparacao de duas features positivas para identificar o melhor K no convertSimilatiry
-	feature_1 = generalDescriptor.good_windows_features[-1].reshape(-1)
-	feature_2 = generalDescriptor.good_windows_features[-2].reshape(-1)
-
-	dist = 0
-	for a, b in zip(feature_1, feature_2):
-		#print('(a - b) ** 2: ', (a - b) ** 2,'\n')
-		dist += (a - b) ** 2
-
-	print('\n\ndist: ',np.sqrt(dist))
-	print('convertSimilatiry: ',convertSimilatiry(float(np.sqrt(dist))))
-	#print('feature_1: ', feature_1.reshape(-1))
-	#print('feature_2: ', feature_2.reshape(-1))
-	'''
-
-	'''
-	print('feature_a: ', feature_a.reshape(-1))
-	print('feature_b: ', feature_b.reshape(-1))
-	print('feature_a - feature_b: ', feature_a.reshape(-1) - feature_b.reshape(-1))
-	print('dist: ', float(np.sqrt(dist)))
-	'''
-
-	return np.sqrt(dist)
-
-def read_data(array, array_size, frame, name=0):
-	bb_list = []
-	is_empty = True
-
-	if DEBUG_PRINT_ARRAY and name is not 0:
-		if(name == 1):
-			print('\n\tNegativo ', end='')
-		if(name == 2):
-			print('\n\tPositivo ', end='')
-		if(name == 3):
-			print('\n\tCandidatos ', end='')
-		if(name == 4):
-			print('\n\tBoundding Box do tracker ', end='')
-
-		print('array: ',end='')
-
-	if(array_size != 0):
-		bb_pos = []
-		for i in range(array_size):
-			if((i%4==0) and (i != 0)):
-				bb_pos.append(frame)
-				bb_list.append(bb_pos)
-				bb_pos = []
-
-			bb_pos.append(array[i])
-
-			if (DEBUG_PRINT_ARRAY) and (name != 0):
-				if i%4 == 0:
-					print('[', end='')
-					print(array[i],', ', end='')
-				elif i%4 == 3:
-					print(array[i],end='')
-					print('] ', end='')
-				else:
-					print(array[i],', ',end='')
-
-		bb_pos.append(frame)
-		bb_list.append(bb_pos)
-		bb_pos = []
-		is_empty = False
-
-	return bb_list, is_empty
 
 def getOpts(opts):
 	print("config opts...")
@@ -562,25 +169,6 @@ def get_list_img_files(vpath):
 	imgFiles.sort()
 
 	return imgFiles
-
-'''
-def frameGenerator(vpath):
-	imgs = []
-	imgFiles = [imgFile for imgFile in glob.glob(os.path.join(vpath, "*.jpg"))]
-	for imgFile in imgFiles:
-		if imgFile.find('00000000.jpg') >= 0:
-			imgFiles.remove(imgFile)
-
-	imgFiles.sort()
-
-	for imgFile in imgFiles:
-		# imgs.append(mpimg.imread(imgFile).astype(np.float32))
-		# imgs.append(np.array(Image.open(imgFile)).astype(np.float32))
-		img = cv2.imread(imgFile).astype(np.float32)
-		imgs.append(img)
-
-	return imgs
-'''
 
 def loadVideoInfo(basePath, video):
 	videoPath = os.path.join(basePath, video)
@@ -733,7 +321,7 @@ def filtroAdaptativo(template,zFeat,mi):
 	return template
 
 def spatialTemplate(targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False ):
-	#construção da criaçao do objeto com media espacial
+	#construção da criacao do objeto com media espacial
 	
 	#TODO - Isso aqui sera chamado fora da funcao. A ser Feito
 	if frame in FRAMES_COM_MEDIA_ESPACIAL:
@@ -873,16 +461,15 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	tic = time.time()
 	ltrb = []
 
-
 	superDescritor = SuperTemplate()
-	superDescritor.addInstance(zFeat)
-	
+	superDescritor.addInstance(zFeat)	
 
 	for frame in range(POSICAO_PRIMEIRO_FRAME, nImgs):
 		
 		im = get_next_frame(imgFiles, frame)
 
 		print(('frame ' + str(frame+1)).center(80,'*'))
+
 		if frame > POSICAO_PRIMEIRO_FRAME:
 
 			zCrop, _ = getSubWinTracking(im, targetPosition, (opts['exemplarSize'], opts['exemplarSize']), (np.around(sz), np.around(sz)), avgChans)
@@ -919,8 +506,10 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			if frame <FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
 				template = template_original
 			
+			template = template_original
+
 			#filtro adaptativo logo abaixo:
-			template = filtroAdaptativo(template,zFeat,mi)
+			#template = filtroAdaptativo(template,zFeat,mi)
 			#~filtro adaptativo
 		
 			
@@ -938,8 +527,9 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 		rectPosition = targetPosition-targetSize/2.
 		tl = tuple(np.round(rectPosition).astype(int)[::-1])
 		br = tuple(np.round(rectPosition+targetSize).astype(int)[::-1])
-		if not IN_A_SERVER: # plot only if it is in a desktop that allows you to watch the video
+		if SHOW: # plot only if it is in a desktop that allows you to watch the video
 			imDraw = im.astype(np.uint8)
+			cv2.putText(imDraw,str(frame+1)+'/'+str(nImgs),(0,25),cv2.FONT_HERSHEY_DUPLEX,1,(0,255,255),2)
 			cv2.rectangle(imDraw, tl, br, (0, 255, 255), thickness=3)
 			cv2.imshow("tracking - siamese", imDraw)
 			cv2.waitKey(1)
@@ -960,7 +550,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	print(time.time()-tic)
 	return
 
-if __name__=='__main__':
+if __name__== '__main__':
 
 	args = _get_Args()
 	video = args.video

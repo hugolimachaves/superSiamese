@@ -1,102 +1,57 @@
-import numpy as np
+import json
+import socket
+import localParameters as lp
 
-def conservative_similarity(list_zFeat):
-	similarity = np.mean(list_zFeat[:list_zFeat.shape[0]/2], axis=0)
+NUM_THREAD = lp.getInJson('datasetRunner','threads')
+LISTA_DE_PARAMETROS = lp.getInJson('datasetRunner','parametros')
+CAMINHO_VOT_2015 = lp.getInJson('sistema','datasetPath')
+PATH_SCRIPT = lp.getInJson('tracker','trackerPath')
+NOME_ARQUIVO_SAIDA = lp.getInJson('datasetRunner', 'nome_saida')
 
-	print(similarity)
-	print(similarity.shape)
+print(NOME_ARQUIVO_SAIDA)
 
-
-zFeat = np.ones((1,6,6,256))
-list_zFeat = np.zeros((1,6,6,256))
-
-
-print(list_zFeat.shape)
-list_zFeat = np.concatenate((list_zFeat, np.array(zFeat)))
-zFeat = 2 * np.array(zFeat)
-print(list_zFeat.shape)
-list_zFeat = np.concatenate((list_zFeat, np.array(zFeat)))
-zFeat = 3 * np.array(zFeat)
-print(list_zFeat.shape)
-list_zFeat = np.concatenate((list_zFeat, np.array(zFeat)))
-zFeat = 4 * np.array(zFeat)
-print(type(list_zFeat))
-list_zFeat = np.concatenate((list_zFeat, np.array(zFeat)))
-zFeat = 5 * np.array(zFeat)
-print(type(list_zFeat))
-list_zFeat = np.concatenate((list_zFeat, np.array(zFeat)))
-zFeat = 6 * np.array(zFeat)
-print(type(list_zFeat))
-
-
-conservative_similarity(list_zFeat)
 '''
-'''
-lista1 = []
-lista2 = []
+j = lp.getInJson("sistema","datasetPath")
 
-lista2.append(lista1)
+def readParameters():
+	with open('parameter.json') as file:
+		k = json.load(file)
+	return k
 
-print(lista2)
 
-for i in lista2:
-	print(i)
-'''
-'''
-SIZE_DESCRIPTOR = 32
+k = readParameters()
 
-def getDescriptor():
-	descriptor = []
-	#TODO Estamos colocando apenas um place holder. A funcao depende da analise do tracker siameseFC no python
-	for _ in range(SIZE_DESCRIPTOR):
-		descriptor.append(float(np.random.randn()))
-	
-	return descriptor
-'''
-'''
-descriptor = getDescriptor()
-print(len(descriptor))
-print(descriptor)
+print('sistema' in k[1].keys())
 '''
 
 '''
-descriptor = np.random.randn(1,32)
-print(descriptor.shape)
-print(descriptor)
+def readParameters():
+	with open("parameter.json") as file:
+		k = json.load(file)
 
-a = np.asarray(descriptor)
-lista = []
-for _ in range(3):
-	lista.append(a)
 
-print(lista)
-
-lista = np.asarray(lista)
-print(lista)
-'''
-
-'''
-a.append(np.asarray(descriptor))
-a.append(np.asarray(descriptor))
-print(a)
-a = np.asarray(a)
-
-print(a)
-print(type(a))
-'''
-'''
-bb_list = []
-bb_pos = []
-
-for i in range(32):
-	bb_pos.append(i)
-
-	if(i%4==0 and i is not 0):
-		bb_pos.append(i)
-		bb_list.append(bb_pos)
-		bb_pos = []
-		print('')
+	for elemento in k:
 		
-	print('bb_list: '+str(bb_list))
-print('bb_list: '+str(bb_list))
+		if elemento['sistema']['computador'] ==  socket.gethostname():
+			caminhoDataset = elemento['sistema']['datasetPath']
+			print(caminhoDataset)
+			trackerPath = elemento['tracker']['trackerPath']
+			inAServer = elemento['tracker']['show']
+			print(inAServer)
+
+			return caminhoDataset, trackerPath,inAServer
+	assert False, 'Nao ha parametros definidos para rodar esse escript nessa maquina.'
 '''
+
+'''
+def readParameters():
+	with open("datasetRunner.json") as file:
+		k = json.load(file)
+
+
+	for elemento in k:
+		
+		print(elemento['datasetRunner']['parametros'])
+'''
+
+
