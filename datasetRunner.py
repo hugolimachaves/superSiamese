@@ -11,9 +11,9 @@ PATH_SCRIPT 		= str(lp.getInJson('tracker','trackerPath'))
 NOME_ARQUIVO_SAIDA 	= str(lp.getInJson('process', 'nome_saida'))
 BASH_PYTHON 		= str(lp.getInJson('sistema','python'))
 LOG_FOLDER 			= lp.getInJson('tracker','log_folder')
+
 def get_list_videos(parametro):
 	listVideos = []
-	print(NOME_ARQUIVO_SAIDA)
 	for i in os.listdir(CAMINHO_VOT_2015):
 		if(not i.startswith('_')) and (os.path.isdir(os.path.join(CAMINHO_VOT_2015,i))):
 			if(not ((NOME_ARQUIVO_SAIDA+str(parametro)) in os.listdir(os.path.join(CAMINHO_VOT_2015,i,LOG_FOLDER)))):
@@ -58,9 +58,6 @@ def main():
 
 		listVideos = get_list_videos(parametro)
 		part_list_videos = get_new_list_video(listVideos, NUM_THREAD)
-
-		for i in part_list_videos:
-			print(i)
 
 		list_process = []
 		for id_thread in range(NUM_THREAD):

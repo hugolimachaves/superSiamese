@@ -365,7 +365,8 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	caminhoVideo = os.path.join(caminhoDataset,nome_do_video)
 	caminhoLog =  os.path.join(caminhoVideo,'__log__')
 	nome_log = nome_do_arquivo_de_saida
-	mi = float(parametro)
+	parametro = float(parametro)
+	FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK  = parametro
 
 	#REDE 1
 	exemplarOp = tf.placeholder(tf.float32, [1, opts['exemplarSize'], opts['exemplarSize'], 3])
@@ -499,14 +500,14 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			#template_espacial = spatialTemplate (targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False )
 			#template = superDescritor.cummulativeTemplate()
 			#template = superDescritor.progressiveTemplate()
-			#template = superDescritor.nShotTemplate(3)
+			template = superDescritor.nShotTemplate(3)
 			#template = superDescritor.innovativeTemplate(3)
 			
 			
 			if frame <FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
 				template = template_original
 			
-			template = template_original
+			#template = template_original
 
 			#filtro adaptativo logo abaixo:
 			#template = filtroAdaptativo(template,zFeat,mi)

@@ -10,42 +10,28 @@
 	}
 	,
 
-	{"sistema":
-		{
-			"python": "python",
-			"SO":"linux",
-			"computador":"hc",
-			"nickname": "hugo pessoal"
-			
-		},
+	{
 
-	"tracker":
-		{
-			"trackerPath": "/home/hugo/Documents/Mestrado/neoSiamese/tracker.py",
-			"datasetPath": "/home/hugo/Documents/Mestrado/vot2015",
-			"groundTruthFile": "groundtruth.txt",
-			"show" : false,
-			"single" : true,
-			"log_folder" : "__log__" 
-		},
-
-	"process":
+		"process":
 		{
 			"video_teste" : "bag",
 			"nome_saida": "nShot_",
 			"parametro":  3
 		}
 	}
+
 	,
 
-	{"sistema":
+	{
+		"sistema":
 		{
 			"python": "python",
 			"SO":"windows",
 			"computador":"DESKTOP-668IF5K",
 			"nickname": "dijkstra"
 		},
-	"tracker":
+		
+		"tracker":
 		{
 			"trackerPath": "C:\\Users\\hugol\\Documents\\superSiamese\\tracker.py",
 			"datasetPath": "C:\\Users\\hugol\\Documents\\vot2015",
@@ -57,7 +43,31 @@
 	}
 	,
 
-	{"sistema":
+	{	
+		"sistema":
+		{
+			"python": "python",
+			"SO":"linux",
+			"computador":"hc",
+			"nickname": "hugo pessoal"
+			
+		},
+
+		"tracker":
+		{
+			"trackerPath": "/home/hugo/Documents/Mestrado/neoSiamese/tracker.py",
+			"datasetPath": "/home/hugo/Documents/Mestrado/vot2015",
+			"groundTruthFile": "groundtruth.txt",
+			"show" : false,
+			"single" : true,
+			"log_folder" : "__log__" 
+		}
+
+	}
+	,
+
+	{	
+		"sistema":
 		{
 			"python": "python3.5",
 			"SO":"linux",
@@ -65,7 +75,7 @@
 			"nickname" : "xodinha"
 			
 		},
-	"tracker":
+		"tracker":
 		{
 			"trackerPath": "/home/schrodinger/sdc/hugo/superSiamese/tracker.py",
 			"datasetPath": "/home/schrodinger/sdc/hugo/vot2015",
@@ -77,14 +87,15 @@
 	}
 	,
 
-	{"sistema":
+	{	"sistema":
 		{
 			"python": "python3.6",
 			"SO":"linux",
 			"computador":"laplace",
 			"nickname" : "keeeeeeeeeeeeeeeeeeeeeevyn"
 		},
-	"tracker":
+
+		"tracker":
 		{
 			"trackerPath": "/home/swhants/Documentos/superSiamese-master/tracker.py",
 			"datasetPath": "/home/swhants/Documentos/vot2015",
