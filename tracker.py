@@ -310,7 +310,10 @@ def filtroAdaptativo(template,zFeat,mi):
 	y = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
 	e = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
 	d = np.zeros([NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR])
-	template = tf.Session().run(template) # casting para np array
+	with tf.Session() as sess:
+		template = sess.run(template)
+
+	#template = tf.Session().run(template) # casting para np array
 
 	for i in range(NUMBER_OF_EXEMPLAR_DESCRIPTOR):
 		for j in range(NUMBER_OF_EXEMPLAR_DESCRIPTOR):
@@ -324,6 +327,7 @@ def filtroAdaptativo(template,zFeat,mi):
 			e[i,j] = d[i,j] - y[i,j]
 			template[i,j,:,0] = template[i,j,:,0] - mi*zFeat[i,j,:,0]*e[i,j] 
 	template = tf.constant(template , dtype=tf.float32) # casting para np array ser uma tf constant
+
 	return template
 
 def spatialTemplate(targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False ):
@@ -375,7 +379,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	caminhoVideo = os.path.join(caminhoDataset,nome_do_video)
 	caminhoLog =  os.path.join(caminhoVideo,'__log__')
 	nome_log = nome_do_arquivo_de_saida
-	parametro = float(parametro)
+	parametro = int(parametro)
 	FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK  = int(parametro)
 
 
@@ -492,7 +496,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 		
 		im = get_next_frame(imgFiles, frame)
 
-		print(('frame ' + str(frame+1)).center(80,'*'))
+		print(('frame ' + str(frame+1) + ' / ' + str(nImgs)).center(80,'*'))
 
 		if frame > POSICAO_PRIMEIRO_FRAME:
 
@@ -512,19 +516,27 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			scaledTarget = np.array([targetSize * scale for scale in scales])
 			xCrops = makeScalePyramid(im, targetPosition, scaledInstance, opts['instanceSize'], avgChans, None, opts)
 
-						
-			template = superDescritor.cummulativeTemplate()
+			template1 = superDescritor.innovativeTemplate(parametro)			
+			template2 = superDescritor.cummulativeTemplate()
 			
 
 			if frame < FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
 				template = template_original
+			else:
+				with tf.Session() as sess1:
+					template1 = sess1.run(template1)
+					template2 = sess1.run(template2)
+					template = (template1 + template2)/2
+					template = tf.constant(template , dtype=tf.float32)
+
+
 			
 
 			#template_espacial = spatialTemplate (targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False )
 			#template = superDescritor.cummulativeTemplate()
 			#template = superDescritor.progressiveTemplate()
 			#template = superDescritor.nShotTemplate(3)
-			#template = superDescritor.innovativeTemplate(3)
+			#
 			
 			#template = template_original
 
@@ -534,7 +546,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			
 			scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
 			score = sess.run(scoreOp, feed_dict={instanceOp: xCrops})
-			sio.savemat('score.mat', {'score': score})
+			#sio.savemat('score.mat', {'score': score})
 			newTargetPosition, newScale = trackerEval(score, round(sx), targetPosition, window, opts)
 			targetPosition = newTargetPosition
 			sx = max(minSx, min(maxSx, (1-opts['scaleLr'])*sx+opts['scaleLr']*scaledInstance[newScale]))

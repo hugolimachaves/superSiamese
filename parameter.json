@@ -3,20 +3,19 @@
 		"datasetRunner":
 		{
 			"comentario": "Arquivo com os parametros necessarios para execucao do script de tracker para um dataset",
-			"threads": 1,
-			"parametros": [3,5,10,15,20,30,40],
+			"threads": 2,
+			"parametros": [15,10,20],
 			"print_siamese_log": false
 		}
 	}
 	,
 
 	{
-
 		"process":
 		{
 			"video_teste" : "wiper",
-			"nome_saida": "teste_validade_funcao",
-			"parametro": 5,
+			"nome_saida": "innovative_cummulative_sameParameter_",
+			"parametro": 15,
 			"print_siamese_log": false
 		}
 	}
@@ -108,7 +107,7 @@
 
 		"tracker":
 		{
-			"trackerPath": "/home/swhants/Documentos/superSiamese-master/tracker.py",
+			"trackerPath": "/home/swhants/Documentos/GitHub/superSiamese/tracker.py",
 			"datasetPath": "/home/swhants/Documentos/vot2015",
 			"groundTruthFile": "groundtruth.txt",
 			"show" : false,
