@@ -5,9 +5,11 @@ from parameters import configParams
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.training import moving_averages
 import time
+import localParameters as lp
 
-MOVING_AVERAGE_DECAY = 0.9997        #only siamese-net in matlab uses 0 here, other projects with tensorflow all use 0.999 here, from some more documents, I think 0.999 is more probable here, since tensorflow uses a equation as 1-decay for this parameter
+MOVING_AVERAGE_DECAY = 0#0.9997        #only siamese-net in matlab uses 0 here, other projects with tensorflow all use 0.999 here, from some more documents, I think 0.999 is more probable here, since tensorflow uses a equation as 1-decay for this parameter
 UPDATE_OPS_COLLECTION = 'sf_update_ops'
+PRINT_SIAMESE_LOG = lp.getInJson('process','print_siamese_log')
 
 class SiameseNet:
     learningRates = None
@@ -45,7 +47,8 @@ class SiameseNet:
 
         with tf.variable_scope('adjust') as scope:
             scope.reuse_variables()
-            print("Building adjust...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building adjust...")
             weights = self.getVariable('weights', [1, 1, 1, 1],
                                        initializer=tf.constant_initializer(value=0.001, dtype=tf.float32),
                                        weightDecay=1.0 * opts['trainWeightDecay'], dType=tf.float32, trainable=True)
@@ -71,7 +74,8 @@ class SiameseNet:
             # the conv2d op in tf is used to implement xcorr directly, from theory, the implementation of conv2d is correlation. However, it is necessary to transpose the weights tensor to a input tensor
             # different scales are tackled with slicing the data. Now only 3 scales are considered, but in training, more samples in a batch is also tackled by the same mechanism. Hence more slices is to be implemented here!!
         with tf.variable_scope('score'):
-            print("Building xcorr...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building xcorr...")
             aFeat = tf.transpose(aFeat, perm=[1, 2, 3, 0])
             batchAFeat = int(aFeat.get_shape()[-1])
             batchScore = int(score.get_shape()[0])
@@ -91,7 +95,8 @@ class SiameseNet:
             # else:
 
         with tf.variable_scope('adjust'):
-            print("Building adjust...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building adjust...")
             weights = self.getVariable('weights', [1, 1, 1, 1], initializer=tf.constant_initializer(value=0.001, dtype=tf.float32), weightDecay=1.0*opts['trainWeightDecay'], dType=tf.float32, trainable=True)
             self.learningRates[weights.name] = 0.0
                 # tf.get_variable('weights', [1, 1, 1, 1], initializer=tf.constant_initializer(value=0.001, dtype=tf.float32))
@@ -112,10 +117,12 @@ class SiameseNet:
             return
 
     def buildSimpleBranch(self, inputs, opts, isTrainingOp, branchName):
-        print("Building Siamese branches...")
+        if(PRINT_SIAMESE_LOG):
+            print("Building Siamese branches...")
 
         with tf.variable_scope('scala1'):
-            print("Building conv1, bn1, relu1, pooling1...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv1, bn1, relu1, pooling1...")
             name = tf.get_variable_scope().name
             # outputs = conv1(inputs, 3, 96, 11, 2)
             outputs = self.conv(inputs, 96, 11, 2, 1, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'])
@@ -124,7 +131,8 @@ class SiameseNet:
             outputs = self.maxPool(outputs, 3, 2)
 
         with tf.variable_scope('scala2'):
-            print("Building conv2, bn2, relu2, pooling2...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv2, bn2, relu2, pooling2...")
             name = tf.get_variable_scope().name
             # outputs = conv2(outputs, 48, 256, 5, 1)
             outputs = self.conv(outputs, 256, 5, 1, 1, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'])
@@ -133,7 +141,8 @@ class SiameseNet:
             outputs = self.maxPool(outputs, 3, 2)
 
         with tf.variable_scope('scala3'):
-            print("Building conv3, bn3, relu3...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv3, bn3, relu3...")
             name = tf.get_variable_scope().name
             # outputs = conv1(outputs, 256, 384, 3, 1)
             outputs = self.conv(outputs, 384, 3, 1, 1, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'])
@@ -141,7 +150,8 @@ class SiameseNet:
             outputs = tf.nn.relu(outputs)
 
         with tf.variable_scope('scala4'):
-            print("Building conv4, bn4, relu4...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv4, bn4, relu4...")
             name = tf.get_variable_scope().name
             # outputs = conv2(outputs, 192, 384, 3, 1)
             outputs = self.conv(outputs, 384, 3, 1, 1, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'])
@@ -149,17 +159,20 @@ class SiameseNet:
             outputs = tf.nn.relu(outputs)
 
         with tf.variable_scope('scala5'):
-            print("Building conv5...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv5...")
             # outputs = conv2(outputs, 192, 256, 3, 1)
             outputs = self.conv(outputs, 256, 3, 1, 1, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'], name=branchName)
 
         return outputs
 
     def buildOriBranch(self, inputs, opts, isTrainingOp, branchName):
-        print("Building Siamese branches...")
+        if(PRINT_SIAMESE_LOG):
+            print("Building Siamese branches...")
 
         with tf.variable_scope('scala1'):
-            print("Building conv1, bn1, relu1, pooling1...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv1, bn1, relu1, pooling1...")
             name = tf.get_variable_scope().name
             # outputs = conv1(inputs, 3, 96, 11, 2)
             outputs = self.conv(inputs, 96, 11, 2, 1, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'])
@@ -168,7 +181,8 @@ class SiameseNet:
             outputs = self.maxPool(outputs, 3, 2)
 
         with tf.variable_scope('scala2'):
-            print("Building conv2, bn2, relu2, pooling2...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv2, bn2, relu2, pooling2...")
             name = tf.get_variable_scope().name
             # outputs = conv2(outputs, 48, 256, 5, 1)
             outputs = self.conv(outputs, 256, 5, 1, 2, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'])
@@ -177,7 +191,8 @@ class SiameseNet:
             outputs = self.maxPool(outputs, 3, 2)
 
         with tf.variable_scope('scala3'):
-            print("Building conv3, bn3, relu3...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv3, bn3, relu3...")
             name = tf.get_variable_scope().name
             # outputs = conv1(outputs, 256, 384, 3, 1)
             outputs = self.conv(outputs, 384, 3, 1, 1, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'])
@@ -185,7 +200,8 @@ class SiameseNet:
             outputs = tf.nn.relu(outputs)
 
         with tf.variable_scope('scala4'):
-            print("Building conv4, bn4, relu4...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv4, bn4, relu4...")
             name = tf.get_variable_scope().name
             # outputs = conv2(outputs, 192, 384, 3, 1)
             outputs = self.conv(outputs, 384, 3, 1, 2, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'])
@@ -193,7 +209,8 @@ class SiameseNet:
             outputs = tf.nn.relu(outputs)
 
         with tf.variable_scope('scala5'):
-            print("Building conv5...")
+            if(PRINT_SIAMESE_LOG):
+                print("Building conv5...")
             # outputs = conv2(outputs, 192, 256, 3, 1)
             outputs = self.conv(outputs, 256, 3, 1, 2, [1.0, 2.0], [1.0, 0.0], opts['trainWeightDecay'], opts['stddev'], name=branchName)
         return outputs
@@ -224,8 +241,8 @@ class SiameseNet:
             conv = tf.add(conv, biases, name=name)
         else:
             conv = tf.add(conv, biases)
-
-        print('Layer Type = Conv, Size = %d * %d, Stride = %d, Filters = %d, Input channels = %d, Groups = %d' % (size, size, stride, filters, channels, groups))
+        if(PRINT_SIAMESE_LOG):
+            print('Layer Type = Conv, Size = %d * %d, Stride = %d, Filters = %d, Input channels = %d, Groups = %d' % (size, size, stride, filters, channels, groups))
 
         return conv
 
@@ -243,22 +260,23 @@ class SiameseNet:
             movingMean = self.getVariable('moving_mean', paramsShape, initializer=tf.constant_initializer(value=0, dtype=tf.float32), trainable=False)
             movingVariance = self.getVariable('moving_variance', paramsShape, initializer=tf.constant_initializer(value=1, dtype=tf.float32), trainable=False)
 
-        print('*****************************', type(movingMean))
+    
         mean, variance = tf.nn.moments(x, axis)
         
- 
+        '''
         updateMovingMean = moving_averages.assign_moving_average(movingMean, mean, MOVING_AVERAGE_DECAY)
         updateMovingVariance = moving_averages.assign_moving_average(movingVariance, variance, MOVING_AVERAGE_DECAY)
  
         tf.add_to_collection(UPDATE_OPS_COLLECTION, updateMovingMean)
         tf.add_to_collection(UPDATE_OPS_COLLECTION, updateMovingVariance)
+        '''
 
         mean, variance = control_flow_ops.cond(isTraining, lambda : (mean, variance), lambda : (movingMean, movingVariance))
         
         x = tf.nn.batch_normalization(x, mean, variance, beta, gamma, variance_epsilon=0.001)
         
-        del updateMovingVariance, updateMovingMean, movingVariance, movingMean
-        print(locals())
+        
+        
         return x
 
     # def batchNormalization(self, inputs, isTraining, name):
@@ -308,7 +326,8 @@ def conv1(inputs, channels, filters, size, stride):
 
     conv = tf.nn.conv2d(inputs, weights, strides=[1, stride, stride, 1], padding='VALID')
     conv = tf.add(conv, biases)
-    print('Layer Type = Conv, Size = %d * %d, Stride = %d, Filters = %d, Input channels = %d' % (
+    if(PRINT_SIAMESE_LOG):
+        print('Layer Type = Conv, Size = %d * %d, Stride = %d, Filters = %d, Input channels = %d' % (
         size, size, stride, filters, channels))
 
     return conv
@@ -332,7 +351,9 @@ def conv2(inputs, channels, filters, size, stride):
     biases = tf.get_variable('biases', [filters, ],
                              initializer=tf.constant_initializer(value=0.1, dtype=tf.float32))
     conv = tf.add(conv, biases)
-    print('Layer Type = Conv, Size = %d * %d, Stride = %d, Filters = %d, Input channels = %d' % (
+
+    if(PRINT_SIAMESE_LOG):
+        print('Layer Type = Conv, Size = %d * %d, Stride = %d, Filters = %d, Input channels = %d' % (
         size, size, stride, filters, channels))
 
     return conv

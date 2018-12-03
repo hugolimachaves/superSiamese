@@ -3,6 +3,7 @@ import math
 import yxwh_generator as yxwh
 import pandas as pd
 import xlwt
+import localParameter as lp
 
 
 
@@ -64,16 +65,16 @@ def determineAndWriteIoU(root,gtFile,outputFile,logs,comparisonTitle):
 
 def determineIoU(gtList,outputList,root,entrada):
 
-	
+	entrada = str(entrada)
 	with open(os.path.join(root,gtList),'r') as file:
 		gt = [list(map(float, line.split(','))) for line in file.read().splitlines()]
 	
-	if entrada ==  LTRB2:
+	if int(entrada) ==  int(LTRB2):
 		pass
-	if entrada == LTRB4:
+	if int(entrada) == int(LTRB4):
 		gt = [ yxwh.getAxisAlignedBB(linha) for linha in gt if len(linha)==8]# se for coordenadas poligonais, deve-se converter para ywwh.
 		gt = [convertYXWH2LTRB(linha) for linha in gt]
-	if entrada == YXWH:
+	if int(entrada) == int(YXWH):
 		gt = [convertYXWH2LTRB(linha) for linha in gt]
 	with open(os.path.join(root,outputList), 'r') as file:
 		predict = [list(map(float, line.split(','))) for line in file.read().splitlines()]
@@ -94,7 +95,7 @@ def datasetIterateIoU(caminhoBase, gtFile,outputFile,rootOutput,comparisonTitle)
 			determineAndWriteIoU(root,gtFile,outputFile,rootOutput,comparisonTitle)
 			
 def readFileAsAList(fileAbsPath):
-	arquivo = [] 
+	arquivo = []
 	with open(fileAbsPath,'r') as file:
 		arquivo = file.readlines()
 	return arquivo
@@ -222,28 +223,12 @@ def fMeasure(precision,recall):
 
 
 
-PATH_DATASET = '/home/hugo/Documents/Mestrado/vot2015'
-
-GT_FILE = 'groundtruth.TLD.txt'
-TRACKER_OUTPUT = 'TLD_original'
-OCCLUSION_FILE = 'occlusion.label'
-LOG_FOLDER = '__log__'
-THRESHOLD = 0.5
-
-
-
-# PATH_DATASET = '/home/swhants/Documentos/vot2015'
-
-
-'''
-
-GT_FILE = 'groundtruth.txt'
-TRACKER_OUTPUT = 'media_acumulada'
-#TRACKER_OUTPUT = 'siameseFC_original'
-OCCLUSION_FILE = 'occlusion.label'
-LOG_FOLDER = '__log__'
-THRESHOLD = 0.25
-'''
+PATH_DATASET 	= lp.getInJson('tracker','datasetPath')
+GT_FILE 		= lp.getInJson('tracker','groundTruthFile')
+TRACKER_OUTPUT 	= lp.getInJson('process','nome_saida')
+OCCLUSION_FILE 	= lp.getInJson('analise','occlusion.label')
+LOG_FOLDER 		= lp.getInJson('tracker','log_folder')
+THRESHOLD 		= lp.getInJson('analise','threshold')
 
 list_video 	   = []
 list_precision = []
@@ -265,11 +250,11 @@ for root, dirs, files in os.walk(PATH_DATASET):
 	
 	if LOG_FOLDER in dirs:
 		
-		video = root.split('/')
+		if lp.getInJson('sistema','SO') == 'windows':
+			video = root.split('\\')
+		else:
+			video = root.split('/')
 		try:
-			#print('In video ', video[-1])
-			#nao utilizado
-			#print('caminho: ',os.path.join(root,GT_FILE))
 			gtList = readFileAsAList(os.path.join(root,GT_FILE))			
 			gtList = removeCarriageReturn(gtList)
 			outputList = readFileAsAList(os.path.join(root,LOG_FOLDER ,TRACKER_OUTPUT))
@@ -283,7 +268,6 @@ for root, dirs, files in os.walk(PATH_DATASET):
 
 			iouList = determineIoU(GT_FILE, os.path.join(LOG_FOLDER, TRACKER_OUTPUT),root,entrada)
 			
-			#print(iouList)
 
 			discrete_iou = discreteIoU(iouList,occlusionList,THRESHOLD)
 			precisionList,precisionValue = precision(discrete_iou,iouList,occlusionList)

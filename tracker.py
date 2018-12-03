@@ -62,7 +62,7 @@ tf.set_random_seed(1) #os.environ['PYTHONHASHSEED'] = '0' #rn.seed(12345) #np.ra
 def _get_Args():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-v","--video"		,default=None, help = "nome da pasta do video")
-	parser.add_argument("-n","--nomeSaida"		,default=None, help = "nome do arquivo de saida")
+	parser.add_argument("-n","--nomeSaida"	,default=None, help = "nome do arquivo de saida")
 	parser.add_argument("-c","--caminho"	,default=None, help = "caminho ABSOLUTO para o dataset")
 	parser.add_argument("-p","--parametro"	,default=None, help = "parametro a ser setado para esse tracker")
 	return parser.parse_args()
@@ -92,7 +92,14 @@ class SuperTemplate:
 	def nShotTemplate(self,nshots):
 		return tf.constant( sum(self.templateList[:nshots])/len(self.templateList[:nshots]) , dtype=tf.float32) 
 
+	def cummulativeTemplateMod(self,zFeat,frame,template):
+		print('frame: ',frame)
+		p1 = (1/(frame+1))
+		p2 = (frame/(frame+1))
+		return (tf.constant(zFeat , dtype=tf.float32) * p1 + template * p2)
+
 	def cummulativeTemplate(self):
+
 		return tf.constant( sum(self.templateList)/len(self.templateList) , dtype=tf.float32) 
 
 	def addInstance(self,instance):
@@ -354,6 +361,9 @@ def spatialTemplate(targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarO
 
 
 
+
+
+
 '''----------------------------------------main-----------------------------------------------------'''
 def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 
@@ -366,7 +376,8 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	caminhoLog =  os.path.join(caminhoVideo,'__log__')
 	nome_log = nome_do_arquivo_de_saida
 	parametro = float(parametro)
-	FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK  = parametro
+	FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK  = int(parametro)
+
 
 	#REDE 1
 	exemplarOp = tf.placeholder(tf.float32, [1, opts['exemplarSize'], opts['exemplarSize'], 3])
@@ -445,6 +456,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
 	zFeat = np.transpose(zFeat, [1, 2, 3, 0])
 	template = tf.constant(zFeat, dtype=tf.float32)
+	oldTemplate = tf.constant(zFeat, dtype=tf.float32)
 	scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
 	#writer.add_graph(sess.graph)
 
@@ -455,15 +467,26 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 	template_original = tf.constant(zFeat_original, dtype=tf.float32)
 	#template = np.array(template_original)
 	template = tf.identity(template_original)
+	oldTemplate = tf.identity(template_original) 
 	template_acumulado = np.array(template)
 	scoreOp_original = sn.buildInferenceNetwork(instanceOp, template_original, opts, isTrainingOp)
 	#writer2.add_graph(sess2.graph)
+
+	teste1 =  tf.constant(zFeat,dtype=tf.float32)
+	teste2 =  tf.Session().run(teste1)
+	teste3  = tf.constant(teste2,dtype=tf.float32)
+
+	
+	#assert 2 == 1
 
 	tic = time.time()
 	ltrb = []
 
 	superDescritor = SuperTemplate()
-	superDescritor.addInstance(zFeat)	
+	superDescritor.addInstance(np.array(zFeat))
+
+	print('zfeat:' , zFeat[0,0,-10,0] )
+	
 
 	for frame in range(POSICAO_PRIMEIRO_FRAME, nImgs):
 		
@@ -478,10 +501,8 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
 			zFeat = np.transpose(zFeat, [1, 2, 3, 0])
 			zFeat.reshape(1,NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR,SIAMESE_DESCRIPTOR_DIMENSION)
+			superDescritor.addInstance(np.array(zFeat))
 
-			superDescritor.addInstance(zFeat)
-			
-			#template = tf.constant(zFeat , dtype=tf.float32) * (1/(frame+1)) + template*(frame/(frame+1))
 			
 			if(im.shape[-1] == 1): # se a imagem for em escala de cinza
 				tmp = np.zeros([im.shape[0], im.shape[1], 3], dtype=np.float32)
@@ -491,28 +512,25 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			scaledTarget = np.array([targetSize * scale for scale in scales])
 			xCrops = makeScalePyramid(im, targetPosition, scaledInstance, opts['instanceSize'], avgChans, None, opts)
 
-			'''
-			template  = getCumulativeTemplate(zFeat,frame,template)
+						
+			template = superDescritor.cummulativeTemplate()
+			
+
 			if frame < FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
 				template = template_original
-			'''
 			
+
 			#template_espacial = spatialTemplate (targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False )
 			#template = superDescritor.cummulativeTemplate()
 			#template = superDescritor.progressiveTemplate()
-			template = superDescritor.nShotTemplate(3)
+			#template = superDescritor.nShotTemplate(3)
 			#template = superDescritor.innovativeTemplate(3)
-			
-			
-			if frame <FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
-				template = template_original
 			
 			#template = template_original
 
 			#filtro adaptativo logo abaixo:
-			#template = filtroAdaptativo(template,zFeat,mi)
+			#template = filtroAdaptativo(template,zFeat,parametro)
 			#~filtro adaptativo
-		
 			
 			scoreOp = sn.buildInferenceNetwork(instanceOp, template, opts, isTrainingOp)
 			score = sess.run(scoreOp, feed_dict={instanceOp: xCrops})
