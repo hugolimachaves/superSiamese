@@ -4,8 +4,9 @@
 		{
 			"comentario": "Arquivo com os parametros necessarios para execucao do script de tracker para um dataset",
 			"threads": 2,
-			"parametros": [15,10,20],
-			"print_siamese_log": false
+			"parametros": [40,30,20,15,10,5],
+			"print_siamese_log": false,
+			"mode": [0, 1, 2]
 		}
 	}
 	,
@@ -14,8 +15,8 @@
 		"process":
 		{
 			"video_teste" : "wiper",
-			"nome_saida": "innovative_cummulative_sameParameter_",
-			"parametro": 15,
+			"nome_saida": "cumulative_gaussiana_",
+			"parametro": 10,
 			"print_siamese_log": false
 		}
 	}
@@ -25,7 +26,7 @@
 	{
 		"analise":
 		{
-			"threshold": 0.5,
+			"threshold": 0.25,
 			"occlusionFile": "occlusion.label"
 		}
 	}

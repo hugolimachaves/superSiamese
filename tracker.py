@@ -63,7 +63,7 @@ def _get_Args():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-v","--video"		,default=None, help = "nome da pasta do video")
 	parser.add_argument("-n","--nomeSaida"	,default=None, help = "nome do arquivo de saida")
-	parser.add_argument("-c","--caminho"	,default=None, help = "caminho ABSOLUTO para o dataset")
+	parser.add_argument("-m","--modo"		,default=None, help = "modo para calculo da gaussiana")
 	parser.add_argument("-p","--parametro"	,default=None, help = "parametro a ser setado para esse tracker")
 	return parser.parse_args()
 
@@ -84,11 +84,8 @@ def get_gaussian_values(size):
             s += 0.001
             g = gaussian(size-1, 0, s)
 
-    print('s = ',s)
-    print('g = ',g)
-
     g_list = []
-    for i in range(n):
+    for i in range(size):
         g_list.append(gaussian(i, 0, s))
 
     return g_list
@@ -153,7 +150,7 @@ class SuperTemplate:
 		for pos, i in enumerate(self.templateList[len(self.templateList)-size:]):
 			aux.append(i*g[pos])
 
-		return tf.constant( sum(aux)/g.sum , dtype=tf.float32) 
+		return tf.constant( sum(aux)/sum(g), dtype=tf.float32) 
 
 	def addInstance(self,instance):
 		template = np.array(instance)
@@ -422,17 +419,17 @@ def spatialTemplate(targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarO
 
 
 '''----------------------------------------main-----------------------------------------------------'''
-def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
+def _main(nome_do_video,nome_do_arquivo_de_saida,modo_selecionado,parametro):
 
 	show = lp.getInJson('tracker','show')
 	opts = configParams()
 	opts = getOpts(opts)
 	#add
-	caminhoDataset = caminho_do_dataset
+	mode = int(modo_selecionado)
+	caminhoDataset = lp.getInJson('tracker', 'datasetPath')
 	caminhoVideo = os.path.join(caminhoDataset,nome_do_video)
 	caminhoLog =  os.path.join(caminhoVideo,'__log__')
 	nome_log = nome_do_arquivo_de_saida
-	parametro = int(parametro)
 	FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK  = int(parametro)
 
 
@@ -574,16 +571,10 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			scaledTarget = np.array([targetSize * scale for scale in scales])
 			xCrops = makeScalePyramid(im, targetPosition, scaledInstance, opts['instanceSize'], avgChans, None, opts)
 			
-			'''
-			if frame < FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
-				template = template_original
-			else:
-				template = superDescritor.mediaMovelGaussiana(size=20, mode=0)
-			'''
-
-			template = superDescritor.cummulativeTemplate()
-
 			
+			template = superDescritor.mediaMovelGaussiana(size=frame, mode=mode)
+
+
 			with tf.Session() as sess1:
 				template = sess1.run(template)
 				template = tf.constant(template , dtype=tf.float32)
@@ -641,7 +632,7 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 if __name__== '__main__':
 	
 	args = _get_Args()
-	listCustom = [args.video,args.nomeSaida,args.caminho,args.parametro]
-	listDefault = [lp.getInJson('process','video_teste'), lp.getInJson('process','nome_saida'), lp.getInJson('tracker','datasetPath'), lp.getInJson('process','parametro')]
+	listCustom = [args.video,args.nomeSaida,args.modo,args.parametro]
+	listDefault = [lp.getInJson('process','video_teste'), lp.getInJson('process','nome_saida'), 0, lp.getInJson('process','parametro')]
 	listaArgs = [argumentoDefault if argumentoCustom == None else argumentoCustom  for argumentoCustom, argumentoDefault in zip(listCustom,listDefault)] # colcoar argumentos default caso nao sejam passados argumentos costumizaveis
 	_main(listaArgs[0],listaArgs[1],listaArgs[2],listaArgs[3])
