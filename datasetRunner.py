@@ -59,15 +59,16 @@ def main():
 		listVideos = get_list_videos(parametro)
 		part_list_videos = get_new_list_video(listVideos, NUM_THREAD)
 
-		list_process = []
-		for id_thread in range(NUM_THREAD):
-			p = multiprocessing.Process(target=runner, args=(id_thread, part_list_videos[id_thread],  parametro))
-			list_process.append(p)
-			p.start()
+		if(len(part_list_videos[0]) != 0):
+			list_process = []
+			for id_thread in range(NUM_THREAD):
+				p = multiprocessing.Process(target=runner, args=(id_thread, part_list_videos[id_thread],  parametro))
+				list_process.append(p)
+				p.start()
 
 
-		for p in list_process:
-			p.join()
+			for p in list_process:
+				p.join()
 
 
 if __name__ == '__main__':

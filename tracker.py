@@ -67,6 +67,31 @@ def _get_Args():
 	parser.add_argument("-p","--parametro"	,default=None, help = "parametro a ser setado para esse tracker")
 	return parser.parse_args()
 
+def gaussian(x, mu, sig):
+    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
+def get_gaussian_values(size):
+    s = 1
+    g = gaussian(size-1, 0, s)
+
+    while True:
+        if((1/size - g) <= 0.0001):
+            break
+        elif(1/size >= g):
+            s -= 0.001
+            g = gaussian(size-1, 0, s)
+        else:
+            s += 0.001
+            g = gaussian(size-1, 0, s)
+
+    print('s = ',s)
+    print('g = ',g)
+
+    g_list = []
+    for i in range(n):
+        g_list.append(gaussian(i, 0, s))
+
+    return g_list
 
 class SuperTemplate:
 	'''
@@ -99,8 +124,36 @@ class SuperTemplate:
 		return (tf.constant(zFeat , dtype=tf.float32) * p1 + template * p2)
 
 	def cummulativeTemplate(self):
+		return tf.constant( sum(self.templateList)/len(self.templateList) , dtype=tf.float32)
 
-		return tf.constant( sum(self.templateList)/len(self.templateList) , dtype=tf.float32) 
+	# mode : Forma da distribuicao
+	#	- 0: Maior peso no inicio da lista (Frame mais Antigo)
+	#	- 1: Maior peso no meio da lista
+	#	- 2: Maior peso no final da lista (Frame mais Recente)
+	def mediaMovelGaussiana(self, size=15, mode=1):
+		if(mode == 0 or mode == 2):
+			g = get_gaussian_values(size)
+			if(mode == 2):
+				g = g[::-1] # Get Reverse List
+
+		else: # (mode == 1)
+			half = int(1 + (size/2))
+			g = get_gaussian_values(half)
+
+			if(size % 2 == 1):
+			    g_a = g[::-1] # Get Reverse List
+			    g = g[1:]
+			else:
+			    g = g[1:]
+			    g_a = g[::-1] # Get Reverse List
+
+			g = g_a+g
+
+		aux = []
+		for pos, i in enumerate(self.templateList[len(self.templateList)-size:]):
+			aux.append(i*g[pos])
+
+		return tf.constant( sum(aux)/g.sum , dtype=tf.float32) 
 
 	def addInstance(self,instance):
 		template = np.array(instance)
@@ -505,9 +558,14 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			zFeat = sess.run(zFeatOp, feed_dict={exemplarOp: zCrop})
 			zFeat = np.transpose(zFeat, [1, 2, 3, 0])
 			zFeat.reshape(1,NUMBER_OF_EXEMPLAR_DESCRIPTOR,NUMBER_OF_EXEMPLAR_DESCRIPTOR,SIAMESE_DESCRIPTOR_DIMENSION)
-			superDescritor.addInstance(np.array(zFeat))
 
-			
+
+			if frame < FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
+				superDescritor.addInstance(np.array(zFeat_original))
+			else:
+				superDescritor.addInstance(np.array(zFeat))
+
+
 			if(im.shape[-1] == 1): # se a imagem for em escala de cinza
 				tmp = np.zeros([im.shape[0], im.shape[1], 3], dtype=np.float32)
 				tmp[:, :, 0] = tmp[:, :, 1] = tmp[:, :, 2] = np.squeeze(im)
@@ -515,22 +573,21 @@ def _main(nome_do_video,nome_do_arquivo_de_saida,caminho_do_dataset,parametro):
 			scaledInstance = sx * scales
 			scaledTarget = np.array([targetSize * scale for scale in scales])
 			xCrops = makeScalePyramid(im, targetPosition, scaledInstance, opts['instanceSize'], avgChans, None, opts)
-
-			template1 = superDescritor.innovativeTemplate(parametro)			
-			template2 = superDescritor.cummulativeTemplate()
 			
-
+			'''
 			if frame < FRAMES_TO_ACUMULATE_BEFORE_FEEDBACK:
 				template = template_original
 			else:
-				with tf.Session() as sess1:
-					template1 = sess1.run(template1)
-					template2 = sess1.run(template2)
-					template = (template1 + template2)/2
-					template = tf.constant(template , dtype=tf.float32)
+				template = superDescritor.mediaMovelGaussiana(size=20, mode=0)
+			'''
 
+			template = superDescritor.cummulativeTemplate()
 
 			
+			with tf.Session() as sess1:
+				template = sess1.run(template)
+				template = tf.constant(template , dtype=tf.float32)
+
 
 			#template_espacial = spatialTemplate (targetPosition,im, opts, sz, avgChans,sess,zFeatOp,exemplarOp,FRAMES_COM_MEDIA_ESPACIAL,amplitude = 0, cumulative = False, adaptative = False )
 			#template = superDescritor.cummulativeTemplate()
